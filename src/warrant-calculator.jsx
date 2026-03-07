@@ -302,7 +302,7 @@ export default function WarrantCalculator() {
         },
         offset: 0,
         limit: 50,
-        sortBy: { field: sortField, order: sortOrder },
+        sortBy: { field: "name", order: sortOrder },
       };
 
       const res = await fetch("/api/market-warrant-filter/", {
