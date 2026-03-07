@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   AreaChart,
   Area,
+  Line,
+  ReferenceLine,
   XAxis,
   YAxis,
   Tooltip,
@@ -173,7 +175,7 @@ const statBox = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function HistoricalChart({ underlyingName, underlyingId, medianIV, onRvDist, simulationData, simulating, direction }) {
+export default function HistoricalChart({ underlyingName, underlyingId, medianIV, onRvDist, simulationData, simTimeoutPaths, simTimeoutTarget, simulating, direction }) {
   const [intervalIdx, setIntervalIdx] = useState(2);
   const [stockId, setStockId] = useState(underlyingId || "");
   const [stockLabel, setStockLabel] = useState(underlyingName || "");
@@ -331,10 +333,13 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
     [chartData, intervalIdx]
   );
 
+  const timeoutPathCount = simTimeoutPaths?.length ?? 0;
+
   const mergedData = useMemo(() => {
     // When simulation data arrives, capture its timestamps as the horizon
-    if (simulationData?.length > 1) {
-      simHorizonRef.current = simulationData.slice(1).map((d) => ({
+    const sourceForHorizon = simulationData ?? simTimeoutPaths?.[0];
+    if (sourceForHorizon?.length > 1) {
+      simHorizonRef.current = sourceForHorizon.slice(1).map((d) => ({
         ts: d.ts,
         dateLabel: formatDate(d.ts),
       }));
@@ -345,25 +350,42 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
     // No simulation ever run — plain chart
     if (!horizon) return formattedData;
 
+    const hasSimData = simulationData?.length > 0;
+    const hasTimeoutPaths = simTimeoutPaths?.length > 0;
+
     // Always pad the x-axis to the simulation horizon
-    const base = formattedData.map((d, i) => ({
-      ...d,
-      simClose: i === formattedData.length - 1 && simulationData?.length
-        ? d.close
-        : undefined,
-    }));
+    // closeFill spans both historical + sim (for continuous fill, no stroke)
+    // close is historical only (for the blue stroke line)
+    const base = formattedData.map((d, i) => {
+      const point = { ...d, closeFill: d.close };
+      const isLast = i === formattedData.length - 1;
+      if (isLast && hasSimData) point.simClose = d.close;
+      if (isLast && hasTimeoutPaths) {
+        for (let p = 0; p < simTimeoutPaths.length; p++) {
+          point[`simPath${p}`] = d.close;
+        }
+      }
+      return point;
+    });
 
     for (const h of horizon) {
-      const simPoint = simulationData?.find((d) => d.ts === h.ts);
-      base.push({
-        ts: h.ts,
-        simClose: simPoint ? simPoint.close : undefined,
-        dateLabel: h.dateLabel,
-      });
+      const point = { ts: h.ts, dateLabel: h.dateLabel };
+      if (hasSimData) {
+        const simPoint = simulationData.find((d) => d.ts === h.ts);
+        point.simClose = simPoint ? simPoint.close : undefined;
+        if (simPoint) point.closeFill = simPoint.close;
+      }
+      if (hasTimeoutPaths) {
+        for (let p = 0; p < simTimeoutPaths.length; p++) {
+          const sp = simTimeoutPaths[p].find((d) => d.ts === h.ts);
+          point[`simPath${p}`] = sp ? sp.close : undefined;
+        }
+      }
+      base.push(point);
     }
 
     return base;
-  }, [formattedData, simulationData]);
+  }, [formattedData, simulationData, simTimeoutPaths]);
 
   const handleSearch = async () => {
     const val = searchInput.trim();
@@ -608,18 +630,6 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                         stopOpacity={0}
                       />
                     </linearGradient>
-                    <linearGradient id="simGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="0%"
-                        stopColor="#ff9800"
-                        stopOpacity={0.15}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="#ff9800"
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
                   </defs>
                   <CartesianGrid
                     stroke="#1a2035"
@@ -639,7 +649,16 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                     minTickGap={50}
                   />
                   <YAxis
-                    domain={["auto", "auto"]}
+                    domain={([dataMin, dataMax]) => {
+                      let lo = dataMin;
+                      let hi = dataMax;
+                      if (simTimeoutTarget) {
+                        const pad = (hi - lo) * 0.12;
+                        lo = Math.min(lo, simTimeoutTarget.price - pad);
+                        hi = Math.max(hi, simTimeoutTarget.price + pad);
+                      }
+                      return [lo, hi];
+                    }}
                     tick={{
                       fill: "#6b7394",
                       fontSize: 10,
@@ -660,17 +679,32 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                     }}
                     labelStyle={{ color: "#6b7394", fontSize: 11 }}
                     itemStyle={{ color: "#4fc3f7" }}
-                    formatter={(value, name) => [
-                      value != null ? value.toFixed(2) + " SEK" : "",
-                      name === "simClose" ? "Simulated" : "Close",
-                    ]}
+                    formatter={(value, name) => {
+                      if (name.startsWith("simPath") || name === "closeFill") return null;
+                      return [
+                        value != null ? value.toFixed(2) + " SEK" : "",
+                        name === "simClose" ? "Simulated" : "Close",
+                      ];
+                    }}
+                    filterNull={true}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="closeFill"
+                    stroke="none"
+                    fill="url(#chartGrad)"
+                    dot={false}
+                    activeDot={false}
+                    connectNulls={false}
+                    isAnimationActive={false}
+                    tooltipType="none"
                   />
                   <Area
                     type="monotone"
                     dataKey="close"
                     stroke="#4fc3f7"
                     strokeWidth={2}
-                    fill="url(#chartGrad)"
+                    fill="none"
                     dot={false}
                     activeDot={{
                       r: 4,
@@ -684,20 +718,77 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                   <Area
                     type="monotone"
                     dataKey="simClose"
-                    stroke="#ff9800"
+                    stroke="#888"
                     strokeWidth={2}
                     strokeDasharray="6 4"
-                    fill="url(#simGrad)"
+                    fill="none"
                     dot={false}
                     activeDot={{
                       r: 4,
-                      fill: "#ff9800",
+                      fill: "#888",
                       stroke: "#0a0e17",
                       strokeWidth: 2,
                     }}
                     connectNulls={false}
                     isAnimationActive={false}
                   />
+                  {Array.from({ length: timeoutPathCount }, (_, i) => (
+                    <Line
+                      key={`simPath${i}`}
+                      type="monotone"
+                      dataKey={`simPath${i}`}
+                      stroke="#555"
+                      strokeWidth={1}
+                      strokeOpacity={0.35}
+                      dot={false}
+                      activeDot={false}
+                      connectNulls={false}
+                      isAnimationActive={false}
+                    />
+                  ))}
+                  {simTimeoutTarget && (
+                    <ReferenceLine
+                      y={simTimeoutTarget.price}
+                      stroke={direction === "short" ? "#e53935" : "#4caf50"}
+                      strokeDasharray="4 3"
+                      strokeWidth={1.5}
+                      label={({ viewBox }) => {
+                        const color = direction === "short" ? "#e53935" : "#4caf50";
+                        const change = simTimeoutTarget.change;
+                        const changeLabel = (change > 0 ? "+" : "") + change + "%";
+                        const bear = change < 0;
+                        const x = viewBox.width + viewBox.x - 4;
+                        // Bear: labels below line; Bull: labels above line
+                        const mainY = bear ? viewBox.y + 16 : viewBox.y - 6;
+                        const subY = bear ? viewBox.y + 30 : viewBox.y - 20;
+                        return (
+                          <g>
+                            <text
+                              x={x}
+                              y={mainY}
+                              textAnchor="end"
+                              fontFamily="'JetBrains Mono', monospace"
+                              fontSize={11}
+                              fontWeight={600}
+                              fill={color}
+                            >
+                              {changeLabel} — too unlikely
+                            </text>
+                            <text
+                              x={x}
+                              y={subY}
+                              textAnchor="end"
+                              fontFamily="'JetBrains Mono', monospace"
+                              fontSize={10}
+                              fill="#6b7394"
+                            >
+                              closest: {simTimeoutTarget.closestChange}%
+                            </text>
+                          </g>
+                        );
+                      }}
+                    />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
 

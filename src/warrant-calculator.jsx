@@ -184,6 +184,8 @@ export default function WarrantCalculator() {
 
   // ── Simulation state ──
   const [simulationData, setSimulationData] = useState(null);
+  const [simTimeoutPaths, setSimTimeoutPaths] = useState(null);
+  const [simTimeoutTarget, setSimTimeoutTarget] = useState(null);
   const [simulating, setSimulating] = useState(false);
   const [resimTrigger, setResimTrigger] = useState(0);
   const [showDynamicsModal, setShowDynamicsModal] = useState(false);
@@ -684,6 +686,7 @@ export default function WarrantCalculator() {
 
     const myId = ++simIdRef.current;
     setSimulating(true);
+    setSimTimeoutPaths(null);
 
     const sigma = vol / 100;
     const dt = 1 / 252;
@@ -703,6 +706,8 @@ export default function WarrantCalculator() {
     }
 
     let totalAttempts = 0;
+    const closestPaths = []; // sorted by error ascending, max 50
+    let worstKeptError = Infinity;
 
     const runBatch = () => {
       if (simIdRef.current !== myId) return;
@@ -719,19 +724,48 @@ export default function WarrantCalculator() {
           path.push(price);
         }
 
-        if (Math.abs(price - targetPrice) / targetPrice <= tolerance) {
+        const err = Math.abs(price - targetPrice) / targetPrice;
+        if (err <= tolerance) {
           if (simIdRef.current !== myId) return;
           setSimulationData(path.map((p, idx) => ({
             ts: timestamps[idx],
             close: p,
           })));
+          setSimTimeoutPaths(null);
+          setSimTimeoutTarget(null);
           setSimulating(false);
           return;
+        }
+
+        // Keep the 50 closest paths for timeout display
+        if (closestPaths.length < 50 || err < worstKeptError) {
+          closestPaths.push({ err, path });
+          if (closestPaths.length >= 100) {
+            closestPaths.sort((a, b) => a.err - b.err);
+            closestPaths.length = 50;
+            worstKeptError = closestPaths[49].err;
+          }
         }
       }
 
       if (totalAttempts >= 500000) {
-        if (simIdRef.current === myId) setSimulating(false);
+        if (simIdRef.current === myId) {
+          closestPaths.sort((a, b) => a.err - b.err);
+          closestPaths.length = Math.min(closestPaths.length, 50);
+          setSimulationData(null);
+          setSimTimeoutPaths(closestPaths.map(({ path }) =>
+            path.map((p, idx) => ({ ts: timestamps[idx], close: p }))
+          ));
+          const change = lastSimTargetRef.current;
+          const closestEnd = closestPaths[0].path[closestPaths[0].path.length - 1];
+          const closestChange = ((closestEnd / spotPrice - 1) * 100).toFixed(1);
+          setSimTimeoutTarget({
+            price: targetPrice,
+            change,
+            closestChange: (closestChange > 0 ? "+" : "") + closestChange,
+          });
+          setSimulating(false);
+        }
         return;
       }
 
@@ -1918,6 +1952,8 @@ export default function WarrantCalculator() {
           medianIV={medianIV}
           onRvDist={setRvDist}
           simulationData={simulationData}
+          simTimeoutPaths={simTimeoutPaths}
+          simTimeoutTarget={simTimeoutTarget}
           simulating={simulating}
           direction={direction}
         />
