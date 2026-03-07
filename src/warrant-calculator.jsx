@@ -1173,15 +1173,38 @@ export default function WarrantCalculator() {
                 marginBottom: 8,
               }}
             >
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "#6b7394",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                }}
-              >
-                Spot price
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "#6b7394",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                  }}
+                >
+                  Spot price
+                </span>
+                {selectedWarrantId && warrantDetails[selectedWarrantId] && (() => {
+                  const baseSpot = warrantDetails[selectedWarrantId].underlying?.quote?.last;
+                  if (!baseSpot) return null;
+                  const step = baseSpot * 0.05;
+                  return (
+                    <>
+                      <span
+                        onClick={() => setSpotPrice(+(spotPrice - step).toFixed(2))}
+                        style={{ fontSize: 10, color: "#ef5350", cursor: "pointer", opacity: 0.75, userSelect: "none", background: "rgba(255,255,255,0.04)", borderRadius: 3, padding: "1px 4px" }}
+                      >
+                        −5%
+                      </span>
+                      <span
+                        onClick={() => setSpotPrice(+(spotPrice + step).toFixed(2))}
+                        style={{ fontSize: 10, color: "#4caf50", cursor: "pointer", opacity: 0.75, userSelect: "none", background: "rgba(255,255,255,0.04)", borderRadius: 3, padding: "1px 4px" }}
+                      >
+                        +5%
+                      </span>
+                    </>
+                  );
+                })()}
               </span>
               <span
                 style={{ fontSize: 13, color: "#4fc3f7", fontWeight: 600 }}
