@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import HistoricalChart from "./historical-chart.jsx";
 
 // ── Black-Scholes math ─────────────────────────────────────────────────────
@@ -132,6 +132,8 @@ const cardStyle = {
 // ── Component ───────────────────────────────────────────────────────────────
 
 export default function WarrantCalculator() {
+  const detailsRef = useRef(null);
+
   // ── Search state ──
   const [underlyings, setUnderlyings] = useState([]);
   const [underlyingSearch, setUnderlyingSearch] = useState("Swedbank A");
@@ -157,6 +159,7 @@ export default function WarrantCalculator() {
   const [warrantPrice, setWarrantPrice] = useState(0.5);
   const [vol, setVol] = useState(30);
   const [daysToExpiry, setDaysToExpiry] = useState(180);
+  const [totalDaysToExpiry, setTotalDaysToExpiry] = useState(180);
   const [riskFreeRate, setRiskFreeRate] = useState(0.03);
   const [calcDirection, setCalcDirection] = useState("short");
   const [warrantName, setWarrantName] = useState("");
@@ -336,8 +339,9 @@ export default function WarrantCalculator() {
       const expiry = parseWarrantExpiry(w.name);
       if (expiry) {
         const today = new Date();
-        const days = Math.round((expiry - today) / (24 * 60 * 60 * 1000));
-        setDaysToExpiry(Math.max(days, 1));
+        const days = Math.max(Math.round((expiry - today) / (24 * 60 * 60 * 1000)), 1);
+        setDaysToExpiry(days);
+        setTotalDaysToExpiry(days);
       }
 
       // Set IV from computed value for this warrant
@@ -359,6 +363,10 @@ export default function WarrantCalculator() {
       }
       setIvType(w.direction === "short" ? "put" : "call");
       setIvResult(null);
+
+      setTimeout(() => {
+        detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
     },
     [warrantDetails, computedIVs]
   );
@@ -942,7 +950,7 @@ export default function WarrantCalculator() {
         )}
 
         {/* ───────────── CALCULATOR HEADER ───────────── */}
-        <div style={{ marginBottom: 32 }}>
+        <div ref={detailsRef} style={{ marginBottom: 32 }}>
           <div
             style={{
               display: "inline-block",
@@ -1058,7 +1066,7 @@ export default function WarrantCalculator() {
             marginBottom: 28,
             border: "1px solid #1a2035",
             display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr",
             gap: 24,
           }}
         >
@@ -1155,10 +1163,43 @@ export default function WarrantCalculator() {
             <input
               type="range"
               min={1}
-              max={730}
+              max={totalDaysToExpiry}
               step={1}
               value={daysToExpiry}
               onChange={(e) => setDaysToExpiry(Number(e.target.value))}
+            />
+          </div>
+          <div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "#6b7394",
+                  textTransform: "uppercase",
+                  letterSpacing: 1,
+                }}
+              >
+                Days from now
+              </span>
+              <span
+                style={{ fontSize: 13, color: "#4fc3f7", fontWeight: 600 }}
+              >
+                {totalDaysToExpiry - daysToExpiry}d
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={totalDaysToExpiry - 1}
+              step={1}
+              value={totalDaysToExpiry - daysToExpiry}
+              onChange={(e) => setDaysToExpiry(totalDaysToExpiry - Number(e.target.value))}
             />
           </div>
         </div>
