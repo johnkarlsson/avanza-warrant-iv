@@ -743,16 +743,38 @@ export default function WarrantCalculator() {
 
               <div>
                 <label style={labelStyle}>Sort by</label>
-                <select
-                  value={sortField}
-                  onChange={(e) => setSortField(e.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="name">Name</option>
-                  <option value="strike">Strike</option>
-                  <option value="lastPrice">Price</option>
-                  <option value="iv">IV</option>
-                </select>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {[
+                    { value: "name", label: "Name" },
+                    { value: "strike", label: "Strike" },
+                    { value: "lastPrice", label: "Price" },
+                    { value: "iv", label: "IV" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setSortField(opt.value)}
+                      style={{
+                        flex: 1,
+                        padding: "10px 6px",
+                        borderRadius: 6,
+                        border:
+                          sortField === opt.value
+                            ? "1px solid #4fc3f7"
+                            : "1px solid #1a2035",
+                        background:
+                          sortField === opt.value
+                            ? "rgba(79,195,247,0.1)"
+                            : "transparent",
+                        color: sortField === opt.value ? "#4fc3f7" : "#6b7394",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
