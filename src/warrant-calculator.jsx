@@ -1709,41 +1709,6 @@ export default function WarrantCalculator() {
                 marginBottom: 8,
               }}
             >
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "#6b7394",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                }}
-              >
-                Days to expiry
-              </span>
-              <span
-                style={{ fontSize: 13, color: "#4fc3f7", fontWeight: 600 }}
-              >
-                {daysToExpiry}d
-              </span>
-            </div>
-            <input
-              type="range"
-              min={1}
-              max={totalDaysToExpiry}
-              step={1}
-              value={daysToExpiry}
-              onChange={(e) => { setDaysToExpiry(Number(e.target.value)); if (RESIM_WHILE_DRAGGING) setResimTrigger((n) => n + 1); }}
-              onMouseUp={RESIM_WHILE_DRAGGING ? undefined : resimulate}
-              onTouchEnd={RESIM_WHILE_DRAGGING ? undefined : resimulate}
-            />
-          </div>
-          <div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: 8,
-              }}
-            >
               <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span
                   style={{
@@ -1781,6 +1746,41 @@ export default function WarrantCalculator() {
               step={1}
               value={totalDaysToExpiry - daysToExpiry}
               onChange={(e) => { setDaysToExpiry(totalDaysToExpiry - Number(e.target.value)); if (RESIM_WHILE_DRAGGING) setResimTrigger((n) => n + 1); }}
+              onMouseUp={RESIM_WHILE_DRAGGING ? undefined : resimulate}
+              onTouchEnd={RESIM_WHILE_DRAGGING ? undefined : resimulate}
+            />
+          </div>
+          <div style={{ opacity: 0.5 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "#6b7394",
+                  textTransform: "uppercase",
+                  letterSpacing: 1,
+                }}
+              >
+                Days to expiry
+              </span>
+              <span
+                style={{ fontSize: 13, color: "#8a8a8a", fontWeight: 600 }}
+              >
+                {daysToExpiry}d
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={totalDaysToExpiry}
+              step={1}
+              value={daysToExpiry}
+              onChange={(e) => { setDaysToExpiry(Number(e.target.value)); if (RESIM_WHILE_DRAGGING) setResimTrigger((n) => n + 1); }}
               onMouseUp={RESIM_WHILE_DRAGGING ? undefined : resimulate}
               onTouchEnd={RESIM_WHILE_DRAGGING ? undefined : resimulate}
             />
