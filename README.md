@@ -1,8 +1,24 @@
 # Avanza Warrant Tools
 
-Shell scripts for querying warrant data from Avanza's internal API. No authentication required.
+Warrant search, implied volatility calculator, and Black-Scholes scenario analysis. Uses Avanza's internal API (no authentication required).
 
-## Scripts
+## Web UI
+
+```bash
+bun install
+bun run dev
+```
+
+Opens at http://localhost:5173. Features:
+
+- **Search** — filter SG warrants by underlying, direction, type, expiry date
+- **Implied volatility** — inverted BS calculation for each search result
+- **Median IV** — auto-populates the scenario calculator below
+- **Click a row** — populates all calculator fields (spot, strike, parity, price, vol, days)
+- **Scenario analysis** — theoretical P&L across different underlying moves
+- **IV solver** — Newton-Raphson inversion with step-by-step output
+
+## Shell Scripts
 
 ### `search-warrants.sh` — Search & filter warrants
 
@@ -157,11 +173,10 @@ Hierarchical category strings using `|` as separator:
 Known working sort fields (used in `sortBy.field`):
 
 - `stopLoss`
-- `strikePrice`
 - `name`
-- `lastPrice`
-- `oneDayChangePercent`
 - `totalValueTraded`
+
+Note: `strikePrice`, `lastPrice`, and `oneDayChangePercent` were previously documented but now return HTTP 400.
 
 Sort order: `asc` or `desc`.
 
