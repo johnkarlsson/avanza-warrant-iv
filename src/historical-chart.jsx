@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   AreaChart,
   Area,
@@ -173,7 +173,7 @@ const statBox = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function HistoricalChart({ underlyingName, underlyingId, medianIV, onRvDist }) {
+export default function HistoricalChart({ underlyingName, underlyingId, medianIV, onRvDist, simulationData, simulating }) {
   const [intervalIdx, setIntervalIdx] = useState(2);
   const [stockId, setStockId] = useState(underlyingId || "");
   const [stockLabel, setStockLabel] = useState(underlyingName || "");
@@ -184,6 +184,19 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showVolInfo, setShowVolInfo] = useState(false);
+  const [showSimOverlay, setShowSimOverlay] = useState(false);
+  const simHorizonRef = useRef(null); // last known sim time range
+  const simOverlayTimer = useRef(null);
+
+  useEffect(() => {
+    if (simulating) {
+      simOverlayTimer.current = setTimeout(() => setShowSimOverlay(true), 500);
+    } else {
+      clearTimeout(simOverlayTimer.current);
+      setShowSimOverlay(false);
+    }
+    return () => clearTimeout(simOverlayTimer.current);
+  }, [simulating]);
 
   useEffect(() => {
     if (underlyingId) {
@@ -317,6 +330,40 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
     () => chartData.map((d) => ({ ...d, dateLabel: formatDate(d.ts) })),
     [chartData, intervalIdx]
   );
+
+  const mergedData = useMemo(() => {
+    // When simulation data arrives, capture its timestamps as the horizon
+    if (simulationData?.length > 1) {
+      simHorizonRef.current = simulationData.slice(1).map((d) => ({
+        ts: d.ts,
+        dateLabel: formatDate(d.ts),
+      }));
+    }
+
+    const horizon = simHorizonRef.current;
+
+    // No simulation ever run — plain chart
+    if (!horizon) return formattedData;
+
+    // Always pad the x-axis to the simulation horizon
+    const base = formattedData.map((d, i) => ({
+      ...d,
+      simClose: i === formattedData.length - 1 && simulationData?.length
+        ? d.close
+        : undefined,
+    }));
+
+    for (const h of horizon) {
+      const simPoint = simulationData?.find((d) => d.ts === h.ts);
+      base.push({
+        ts: h.ts,
+        simClose: simPoint ? simPoint.close : undefined,
+        dateLabel: h.dateLabel,
+      });
+    }
+
+    return base;
+  }, [formattedData, simulationData]);
 
   const handleSearch = async () => {
     const val = searchInput.trim();
@@ -545,9 +592,9 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
             </div>
 
             {/* Chart */}
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 20, position: "relative" }}>
               <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={formattedData}>
+                <AreaChart data={mergedData}>
                   <defs>
                     <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop
@@ -558,6 +605,18 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                       <stop
                         offset="100%"
                         stopColor="#4fc3f7"
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
+                    <linearGradient id="simGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop
+                        offset="0%"
+                        stopColor="#ff9800"
+                        stopOpacity={0.15}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor="#ff9800"
                         stopOpacity={0}
                       />
                     </linearGradient>
@@ -601,7 +660,10 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                     }}
                     labelStyle={{ color: "#6b7394", fontSize: 11 }}
                     itemStyle={{ color: "#4fc3f7" }}
-                    formatter={(value) => [value.toFixed(2) + " SEK", "Close"]}
+                    formatter={(value, name) => [
+                      value != null ? value.toFixed(2) + " SEK" : "",
+                      name === "simClose" ? "Simulated" : "Close",
+                    ]}
                   />
                   <Area
                     type="monotone"
@@ -616,9 +678,72 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                       stroke: "#0a0e17",
                       strokeWidth: 2,
                     }}
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="simClose"
+                    stroke="#ff9800"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    fill="url(#simGrad)"
+                    dot={false}
+                    activeDot={{
+                      r: 4,
+                      fill: "#ff9800",
+                      stroke: "#0a0e17",
+                      strokeWidth: 2,
+                    }}
+                    connectNulls={false}
+                    isAnimationActive={false}
                   />
                 </AreaChart>
               </ResponsiveContainer>
+
+              {/* Simulating overlay */}
+              {showSimOverlay && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "rgba(10, 14, 23, 0.7)",
+                    borderRadius: 8,
+                    zIndex: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      color: "#4fc3f7",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 18,
+                        height: 18,
+                        border: "2px solid #4fc3f730",
+                        borderTop: "2px solid #4fc3f7",
+                        borderRadius: "50%",
+                        animation: "sim-spin 0.8s linear infinite",
+                      }}
+                    />
+                    Simulating…
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ── Realized Vol Section ── */}

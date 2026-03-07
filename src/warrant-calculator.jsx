@@ -98,6 +98,8 @@ const parseWarrantExpiry = (name) => {
   return thirdFriday(year, month);
 };
 
+const RESIM_WHILE_DRAGGING = true;
+
 // ── Shared styles ───────────────────────────────────────────────────────────
 
 const inputStyle = {
@@ -176,6 +178,13 @@ export default function WarrantCalculator() {
   const [ivType, setIvType] = useState("put");
   const [ivResult, setIvResult] = useState(null);
   const [showSteps, setShowSteps] = useState(false);
+
+  // ── Simulation state ──
+  const [simulationData, setSimulationData] = useState(null);
+  const [simulating, setSimulating] = useState(false);
+  const [resimTrigger, setResimTrigger] = useState(0);
+  const simIdRef = useRef(0);
+  const lastSimTargetRef = useRef(null);
 
   // ── Load cache on mount ──
   useEffect(() => {
@@ -578,12 +587,18 @@ export default function WarrantCalculator() {
           : Math.max(newSpot - strike, 0);
       const intrinsic = intrinsicRaw / parity;
 
+      const d2 = (Math.log(spotPrice / newSpot) + (riskFreeRate - sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
+      const prob = calcDirection === "short"
+        ? cdf(-d2)  // P(S_T ≤ newSpot)
+        : cdf(d2);  // P(S_T ≥ newSpot)
+
       return {
         ...s,
         newSpot: newSpot.toFixed(1),
         optionValue: optionValue.toFixed(2),
         warrantVal: warrantTheoretical.toFixed(2),
         intrinsic: intrinsic.toFixed(2),
+        prob: (prob * 100).toFixed(1),
         pnl: pnlPerWarrant.toFixed(2),
         pnlPct: pnlPct.toFixed(0),
         profitable: pnlPerWarrant > 0,
@@ -609,6 +624,87 @@ export default function WarrantCalculator() {
 
   const optionTypeLabel = calcDirection === "short" ? "PUT" : "CALL";
   const distToStrike = strike > 0 ? ((1 - strike / spotPrice) * 100) : 0;
+
+  // ── Random walk simulation ──
+  const simulateForScenario = useCallback((targetPrice, scenarioChange) => {
+    if (scenarioChange != null) lastSimTargetRef.current = scenarioChange;
+
+    const calendarDays = totalDaysToExpiry - daysToExpiry;
+    if (calendarDays <= 0) return;
+
+    const tradingDays = Math.round(calendarDays * 5 / 7);
+    if (tradingDays <= 0) return;
+
+    const myId = ++simIdRef.current;
+    setSimulating(true);
+
+    const sigma = vol / 100;
+    const dt = 1 / 252;
+    const sqrtDt = Math.sqrt(dt);
+    const drift = -0.5 * sigma * sigma * dt;
+    const tolerance = 0.01;
+
+    // Generate future business day timestamps
+    const timestamps = [];
+    const now = new Date();
+    let d = new Date(now);
+    for (let i = 0; i <= tradingDays; i++) {
+      if (i > 0) {
+        do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6);
+      }
+      timestamps.push(new Date(d).getTime());
+    }
+
+    let totalAttempts = 0;
+
+    const runBatch = () => {
+      if (simIdRef.current !== myId) return;
+
+      for (let i = 0; i < 10000 && totalAttempts < 500000; i++, totalAttempts++) {
+        const path = [spotPrice];
+        let price = spotPrice;
+
+        for (let day = 0; day < tradingDays; day++) {
+          const u1 = Math.random();
+          const u2 = Math.random();
+          const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+          price *= Math.exp(drift + sigma * sqrtDt * z);
+          path.push(price);
+        }
+
+        if (Math.abs(price - targetPrice) / targetPrice <= tolerance) {
+          if (simIdRef.current !== myId) return;
+          setSimulationData(path.map((p, idx) => ({
+            ts: timestamps[idx],
+            close: p,
+          })));
+          setSimulating(false);
+          return;
+        }
+      }
+
+      if (totalAttempts >= 500000) {
+        if (simIdRef.current === myId) setSimulating(false);
+        return;
+      }
+
+      setTimeout(runBatch, 0);
+    };
+
+    setTimeout(runBatch, 0);
+  }, [spotPrice, vol, totalDaysToExpiry, daysToExpiry]);
+
+  const resimulate = useCallback(() => {
+    if (lastSimTargetRef.current == null && !simulationData) return;
+    const change = lastSimTargetRef.current;
+    if (change == null) return;
+    const target = spotPrice * (1 + change / 100);
+    simulateForScenario(target);
+  }, [simulateForScenario, spotPrice, simulationData]);
+
+  useEffect(() => {
+    if (resimTrigger > 0) resimulate();
+  }, [resimTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Render ──
   return (
@@ -636,6 +732,7 @@ export default function WarrantCalculator() {
           background: #4fc3f7; border: 2px solid #0a0e17; cursor: pointer;
         }
         select { -webkit-appearance: none; appearance: none; }
+        @keyframes sim-spin { to { transform: rotate(360deg); } }
         tr.result-row { cursor: pointer; transition: background 0.15s; }
         tr.result-row:hover { background: rgba(79,195,247,0.06) !important; }
       `}</style>
@@ -1364,7 +1461,7 @@ export default function WarrantCalculator() {
                     value != null ? (
                       <span
                         key={label}
-                        onClick={() => setVol(Math.round(value))}
+                        onClick={() => { setVol(Math.round(value)); setResimTrigger((n) => n + 1); }}
                         style={{
                           fontSize: 10,
                           color,
@@ -1395,7 +1492,9 @@ export default function WarrantCalculator() {
               max={120}
               step={1}
               value={vol}
-              onChange={(e) => setVol(Number(e.target.value))}
+              onChange={(e) => { setVol(Number(e.target.value)); if (RESIM_WHILE_DRAGGING) setResimTrigger((n) => n + 1); }}
+              onMouseUp={RESIM_WHILE_DRAGGING ? undefined : resimulate}
+              onTouchEnd={RESIM_WHILE_DRAGGING ? undefined : resimulate}
             />
           </div>
           <div>
@@ -1428,7 +1527,9 @@ export default function WarrantCalculator() {
               max={totalDaysToExpiry}
               step={1}
               value={daysToExpiry}
-              onChange={(e) => setDaysToExpiry(Number(e.target.value))}
+              onChange={(e) => { setDaysToExpiry(Number(e.target.value)); if (RESIM_WHILE_DRAGGING) setResimTrigger((n) => n + 1); }}
+              onMouseUp={RESIM_WHILE_DRAGGING ? undefined : resimulate}
+              onTouchEnd={RESIM_WHILE_DRAGGING ? undefined : resimulate}
             />
           </div>
           <div>
@@ -1451,7 +1552,7 @@ export default function WarrantCalculator() {
                   Days from now
                 </span>
                 <span
-                  onClick={() => setDaysToExpiry(Math.max(1, daysToExpiry - 30))}
+                  onClick={() => { setDaysToExpiry(Math.max(1, daysToExpiry - 30)); setResimTrigger((n) => n + 1); }}
                   style={{
                     fontSize: 11,
                     color: "#4fc3f7",
@@ -1475,7 +1576,9 @@ export default function WarrantCalculator() {
               max={totalDaysToExpiry - 1}
               step={1}
               value={totalDaysToExpiry - daysToExpiry}
-              onChange={(e) => setDaysToExpiry(totalDaysToExpiry - Number(e.target.value))}
+              onChange={(e) => { setDaysToExpiry(totalDaysToExpiry - Number(e.target.value)); if (RESIM_WHILE_DRAGGING) setResimTrigger((n) => n + 1); }}
+              onMouseUp={RESIM_WHILE_DRAGGING ? undefined : resimulate}
+              onTouchEnd={RESIM_WHILE_DRAGGING ? undefined : resimulate}
             />
           </div>
         </div>
@@ -1525,6 +1628,7 @@ export default function WarrantCalculator() {
                     "Warrant value",
                     "P&L / warrant",
                     "Return",
+                    "Probability",
                   ].map((h, i) => (
                     <th
                       key={i}
@@ -1548,6 +1652,8 @@ export default function WarrantCalculator() {
                 {scenarioResults.map((r, i) => (
                   <tr
                     key={i}
+                    className="result-row"
+                    onClick={() => simulateForScenario(parseFloat(r.newSpot), r.change)}
                     style={{
                       borderBottom:
                         i < scenarioResults.length - 1
@@ -1643,6 +1749,15 @@ export default function WarrantCalculator() {
                       {r.profitable ? "+" : ""}
                       {r.pnlPct}%
                     </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "right",
+                        color: "#b0bec5",
+                      }}
+                    >
+                      {r.prob}%
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1656,6 +1771,8 @@ export default function WarrantCalculator() {
           underlyingId={underlyingId}
           medianIV={medianIV}
           onRvDist={setRvDist}
+          simulationData={simulationData}
+          simulating={simulating}
         />
 
         {/* ───────────── IV SOLVER ───────────── */}
