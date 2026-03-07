@@ -151,6 +151,7 @@ export default function WarrantCalculator() {
   const [totalResults, setTotalResults] = useState(0);
   const [searchError, setSearchError] = useState(null);
   const [selectedWarrantId, setSelectedWarrantId] = useState(null);
+  const [rvDist, setRvDist] = useState(null);
 
   // ── Calculator state ──
   const [spotPrice, setSpotPrice] = useState(332.3);
@@ -1193,6 +1194,35 @@ export default function WarrantCalculator() {
               >
                 Implied vol
               </span>
+              {rvDist && (
+                <span style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                  {[
+                    { label: "▼", value: rvDist.red?.median, color: "#ef5350" },
+                    { label: "all", value: rvDist.median, color: "#6b7394" },
+                    { label: "▲", value: rvDist.green?.median, color: "#4caf50" },
+                  ].map(({ label, value, color }) =>
+                    value != null ? (
+                      <span
+                        key={label}
+                        onClick={() => setVol(Math.round(value))}
+                        style={{
+                          fontSize: 10,
+                          color,
+                          cursor: "pointer",
+                          opacity: 0.75,
+                          userSelect: "none",
+                          background: "rgba(255,255,255,0.04)",
+                          borderRadius: 3,
+                          padding: "1px 4px",
+                        }}
+                        title={`Set vol to ${label} RV median: ${value.toFixed(1)}%`}
+                      >
+                        {value.toFixed(0)}%
+                      </span>
+                    ) : null
+                  )}
+                </span>
+              )}
               <span
                 style={{ fontSize: 13, color: "#4fc3f7", fontWeight: 600 }}
               >
@@ -1465,6 +1495,7 @@ export default function WarrantCalculator() {
           underlyingName={underlyingSearch}
           underlyingId={underlyingId}
           medianIV={medianIV}
+          onRvDist={setRvDist}
         />
 
         {/* ───────────── IV SOLVER ───────────── */}

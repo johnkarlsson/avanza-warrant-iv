@@ -173,7 +173,7 @@ const statBox = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function HistoricalChart({ underlyingName, underlyingId, medianIV }) {
+export default function HistoricalChart({ underlyingName, underlyingId, medianIV, onRvDist }) {
   const [intervalIdx, setIntervalIdx] = useState(2);
   const [stockId, setStockId] = useState(underlyingId || "");
   const [stockLabel, setStockLabel] = useState(underlyingName || "");
@@ -284,6 +284,10 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
       } : null,
     };
   }, [fiveYearCloses, medianIV]);
+
+  useEffect(() => {
+    if (onRvDist) onRvDist(rvDist);
+  }, [rvDist, onRvDist]);
 
   const regime = rv.rv30 != null ? volRegime(rv.rv30) : null;
 
