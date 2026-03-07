@@ -173,7 +173,7 @@ const statBox = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function HistoricalChart({ underlyingName, underlyingId, medianIV, onRvDist, simulationData, simulating }) {
+export default function HistoricalChart({ underlyingName, underlyingId, medianIV, onRvDist, simulationData, simulating, direction }) {
   const [intervalIdx, setIntervalIdx] = useState(2);
   const [stockId, setStockId] = useState(underlyingId || "");
   const [stockLabel, setStockLabel] = useState(underlyingName || "");
@@ -864,7 +864,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                 style={{
                   display: "grid",
                   gridTemplateColumns:
-                    `repeat(${3 + (rvDist ? 1 : 0)}, 1fr)`,
+                    rvDist ? "1fr 1fr 1fr 2fr" : "1fr 1fr 1fr",
                   gap: 10,
                 }}
               >
@@ -927,28 +927,28 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                         marginBottom: 2,
                       }}
                     >
-                      90-Day Rolling RV (Bear/All/Bull)
+                      90-Day Rolling RV (p25 / med / p75)
                     </div>
                     {[
-                      { label: "p25", all: rvDist.p25, red: rvDist.red?.p25, green: rvDist.green?.p25 },
-                      { label: "med", all: rvDist.median, red: rvDist.red?.median, green: rvDist.green?.median },
-                      { label: "p75", all: rvDist.p75, red: rvDist.red?.p75, green: rvDist.green?.p75 },
-                    ].map((item, i) => (
+                      { label: "Bull", values: [rvDist.green?.p25, rvDist.green?.median, rvDist.green?.p75], match: direction === "long" || !direction },
+                      { label: "\u00a0All", values: [rvDist.p25, rvDist.median, rvDist.p75], match: !direction },
+                      { label: "Bear", values: [rvDist.red?.p25, rvDist.red?.median, rvDist.red?.p75], match: direction === "short" || !direction },
+                    ].map((item, i) => {
+                      const dimmed = !item.match;
+                      return (
                       <div key={item.label} style={{ fontSize: 10, marginTop: i === 0 ? 8 : 3 }}>
-                        <span style={{ color: "#6b7394" }}>{item.label}: </span>
-                        <span style={{ color: volRegime(item.red ?? 0).color, fontWeight: 600 }}>
-                          {item.red != null ? `${item.red.toFixed(1)}%` : "--"}
-                        </span>
-                        <span style={{ color: "#6b7394" }}>/</span>
-                        <span style={{ color: volRegime(item.all).color, fontWeight: 600 }}>
-                          {item.all.toFixed(1)}%
-                        </span>
-                        <span style={{ color: "#6b7394" }}>/</span>
-                        <span style={{ color: volRegime(item.green ?? 0).color, fontWeight: 600 }}>
-                          {item.green != null ? `${item.green.toFixed(1)}%` : "--"}
-                        </span>
+                        <span style={{ color: dimmed ? "#3a4060" : "#fff" }}>{item.label}</span><span style={{ color: dimmed ? "#3a4060" : "#6b7394" }}>: </span>
+                        {item.values.map((v, j) => (
+                          <span key={j}>
+                            {j > 0 && <span style={{ color: dimmed ? "#3a4060" : "#6b7394" }}> / </span>}
+                            <span style={{ color: dimmed ? "#3a4060" : volRegime(v ?? 0).color, fontWeight: 600 }}>
+                              {v != null ? `${v.toFixed(1)}%` : "--"}
+                            </span>
+                          </span>
+                        ))}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 

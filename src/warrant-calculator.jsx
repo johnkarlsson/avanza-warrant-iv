@@ -1753,6 +1753,7 @@ export default function WarrantCalculator() {
           onRvDist={setRvDist}
           simulationData={simulationData}
           simulating={simulating}
+          direction={direction}
         />
 
         {/* ───────────── IV SOLVER ───────────── */}
