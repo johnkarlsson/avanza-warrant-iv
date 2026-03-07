@@ -1022,11 +1022,8 @@ export default function WarrantCalculator() {
                 <label style={labelStyle}>Type</label>
                 <select
                   value={subType}
-                  onChange={(e) => {
-                    setSubType(e.target.value);
-                    setNeedsSelection(true);
-                  }}
-                  style={inputStyle}
+                  disabled
+                  style={{ ...inputStyle, opacity: 0.5, cursor: "not-allowed" }}
                 >
                   <option value="">All types</option>
                   <option value="plain_vanilla">Warrant</option>
