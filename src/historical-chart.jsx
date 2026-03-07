@@ -123,7 +123,9 @@ function calcRollingRV(closes, window) {
     const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
     const variance =
       returns.reduce((a, r) => a + (r - mean) ** 2, 0) / (returns.length - 1);
-    results.push(Math.sqrt(variance * 252) * 100);
+    const rv = Math.sqrt(variance * 252) * 100;
+    const growth = (slice[slice.length - 1] - slice[0]) / slice[0];
+    results.push({ rv, growth });
   }
   return results;
 }
@@ -255,9 +257,14 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
   const rvDist = useMemo(() => {
     if (fiveYearCloses.length < 91) return null;
     const rolling = calcRollingRV(fiveYearCloses, 90);
-    const sorted = [...rolling].sort((a, b) => a - b);
+    const allRVs = rolling.map((r) => r.rv);
+    const redRVs = rolling.filter((r) => r.growth < 0).map((r) => r.rv);
+    const greenRVs = rolling.filter((r) => r.growth >= 0).map((r) => r.rv);
+    const sorted = [...allRVs].sort((a, b) => a - b);
+    const redSorted = [...redRVs].sort((a, b) => a - b);
+    const greenSorted = [...greenRVs].sort((a, b) => a - b);
     return {
-      current: rolling[rolling.length - 1],
+      current: allRVs[allRVs.length - 1],
       min: sorted[0],
       p25: percentile(sorted, 25),
       median: percentile(sorted, 50),
@@ -265,6 +272,16 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
       max: sorted[sorted.length - 1],
       ivRank: medianIV != null ? percentileRank(sorted, medianIV) : null,
       count: sorted.length,
+      red: redSorted.length > 0 ? {
+        p25: percentile(redSorted, 25),
+        median: percentile(redSorted, 50),
+        p75: percentile(redSorted, 75),
+      } : null,
+      green: greenSorted.length > 0 ? {
+        p25: percentile(greenSorted, 25),
+        median: percentile(greenSorted, 50),
+        p75: percentile(greenSorted, 75),
+      } : null,
     };
   }, [fiveYearCloses, medianIV]);
 
@@ -781,18 +798,26 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                         marginBottom: 2,
                       }}
                     >
-                      90-Day Rolling RV
+                      90-Day Rolling RV (RAG)
                     </div>
                     {[
-                      { value: rvDist.p25, label: "p25" },
-                      { value: rvDist.median, label: "med" },
-                      { value: rvDist.p75, label: "p75" },
+                      { label: "p25", all: rvDist.p25, red: rvDist.red?.p25, green: rvDist.green?.p25 },
+                      { label: "med", all: rvDist.median, red: rvDist.red?.median, green: rvDist.green?.median },
+                      { label: "p75", all: rvDist.p75, red: rvDist.red?.p75, green: rvDist.green?.p75 },
                     ].map((item, i) => (
                       <div key={item.label} style={{ fontSize: 10, marginTop: i === 0 ? 8 : 3 }}>
-                        <span style={{ color: volRegime(item.value).color, fontWeight: 600 }}>
-                          {item.value.toFixed(1)}%
-                        </span>{" "}
-                        <span style={{ color: "#6b7394" }}>{item.label}</span>
+                        <span style={{ color: "#6b7394" }}>{item.label}: </span>
+                        <span style={{ color: volRegime(item.red ?? 0).color, fontWeight: 600 }}>
+                          {item.red != null ? `${item.red.toFixed(1)}%` : "--"}
+                        </span>
+                        <span style={{ color: "#6b7394" }}>/</span>
+                        <span style={{ color: volRegime(item.all).color, fontWeight: 600 }}>
+                          {item.all.toFixed(1)}%
+                        </span>
+                        <span style={{ color: "#6b7394" }}>/</span>
+                        <span style={{ color: volRegime(item.green ?? 0).color, fontWeight: 600 }}>
+                          {item.green != null ? `${item.green.toFixed(1)}%` : "--"}
+                        </span>
                       </div>
                     ))}
                   </div>
