@@ -181,11 +181,20 @@ export default function WarrantCalculator() {
     try {
       const raw = localStorage.getItem("avanza_warrant_cache");
       if (raw) {
-        const { results, details, ivs, total, calc } = JSON.parse(raw);
+        const { results, details, ivs, total, calc, search } = JSON.parse(raw);
         if (results) setSearchResults(results);
         if (details) setWarrantDetails(details);
         if (ivs) setComputedIVs(ivs);
         if (total != null) setTotalResults(total);
+        if (search) {
+          if (search.underlyingSearch != null) setUnderlyingSearch(search.underlyingSearch);
+          if (search.underlyingId != null) setUnderlyingId(search.underlyingId);
+          if (search.direction != null) setDirection(search.direction);
+          if (search.subType != null) setSubType(search.subType);
+          if (search.endDate != null) setEndDate(search.endDate);
+          if (search.sortField != null) setSortField(search.sortField);
+          if (search.sortOrder != null) setSortOrder(search.sortOrder);
+        }
         if (calc) {
           if (calc.selectedWarrantId != null) setSelectedWarrantId(calc.selectedWarrantId);
           if (calc.spotPrice != null) setSpotPrice(calc.spotPrice);
@@ -221,6 +230,19 @@ export default function WarrantCalculator() {
       console.error("Failed to save search cache:", e);
     }
   }, [searchResults, warrantDetails, computedIVs, totalResults]);
+
+  // ── Save search params to cache ──
+  useEffect(() => {
+    try {
+      const existing = JSON.parse(localStorage.getItem("avanza_warrant_cache") || "{}");
+      localStorage.setItem("avanza_warrant_cache", JSON.stringify({
+        ...existing,
+        search: { underlyingSearch, underlyingId, direction, subType, endDate, sortField, sortOrder },
+      }));
+    } catch (e) {
+      console.error("Failed to save search params cache:", e);
+    }
+  }, [underlyingSearch, underlyingId, direction, subType, endDate, sortField, sortOrder]);
 
   // ── Save calculator state to cache ──
   useEffect(() => {
