@@ -1836,7 +1836,7 @@ export default function WarrantCalculator() {
                       key={i}
                       style={{
                         padding: "12px 16px",
-                        textAlign: i === 0 ? "left" : "right",
+                        textAlign: i === 0 ? "left" : i === 2 ? "center" : "right",
                         fontSize: 10,
                         color: "#6b7394",
                         textTransform: "uppercase",
@@ -1894,11 +1894,21 @@ export default function WarrantCalculator() {
                     <td
                       style={{
                         padding: "12px 16px",
-                        textAlign: "right",
                         color: "#b0bec5",
                       }}
                     >
-                      {r.prob}%
+                      <span style={{ display: "flex", fontVariantNumeric: "tabular-nums", fontFamily: "monospace", fontSize: 12 }}>
+                        {(() => {
+                          const [int, dec] = r.prob.split(".");
+                          return (
+                            <>
+                              <span style={{ flex: "1 1 0%", minWidth: 0, overflow: "visible", textAlign: "right" }}>{int}</span>
+                              <span>.</span>
+                              <span style={{ flex: "1 1 0%", minWidth: 0, overflow: "visible", textAlign: "left" }}>{dec}%</span>
+                            </>
+                          );
+                        })()}
+                      </span>
                     </td>
                     <td
                       style={{
