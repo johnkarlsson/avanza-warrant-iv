@@ -850,9 +850,11 @@ export default function WarrantCalculator() {
           min-width: calc((100vw - 2 * var(--arrow-gutter)) / var(--panel-count));
           scroll-snap-align: start;
           height: calc(100vh - 64px);
-          overflow-y: auto;
+          overflow-y: hidden;
           padding: 0 16px;
           box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
         }
         .nav-arrow {
           position: fixed; top: 50%; transform: translateY(-50%); z-index: 100;
@@ -891,7 +893,7 @@ export default function WarrantCalculator() {
       <div ref={scrollContainerRef} className="panel-container" onScroll={handleContainerScroll} style={{ padding: "32px 0" }}>
         <div className="panel">
         {/* ───────────── SEARCH SECTION ───────────── */}
-        <div style={{ ...cardStyle, marginBottom: 28 }}>
+        <div style={{ ...cardStyle, marginBottom: 28, flexShrink: 0 }}>
           <div
             style={{
               padding: "16px 24px",
@@ -1173,7 +1175,7 @@ export default function WarrantCalculator() {
 
         {/* ───────────── SEARCH RESULTS ───────────── */}
         {searchResults.length > 0 && (
-          <div style={{ ...cardStyle, marginBottom: 28 }}>
+          <div style={{ ...cardStyle, marginBottom: 28, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             <div
               style={{
                 padding: "16px 24px",
@@ -1181,6 +1183,7 @@ export default function WarrantCalculator() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                flexShrink: 0,
               }}
             >
               <div>
@@ -1238,7 +1241,7 @@ export default function WarrantCalculator() {
               )}
             </div>
 
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflow: "auto", flex: 1, minHeight: 0 }}>
               <table
                 style={{
                   width: "100%",
@@ -1487,7 +1490,7 @@ export default function WarrantCalculator() {
           </div>
         )}
         {/* ───────────── CALCULATOR HEADER ───────────── */}
-        <div ref={detailsRef} style={{ marginBottom: 32, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div ref={detailsRef} style={{ marginBottom: 32, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
           <div>
             <div
               style={{
@@ -1601,6 +1604,7 @@ export default function WarrantCalculator() {
             gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
             gap: 12,
             marginBottom: 28,
+            flexShrink: 0,
           }}
         >
           {[
@@ -1671,6 +1675,7 @@ export default function WarrantCalculator() {
             display: "grid",
             gridTemplateColumns: "1fr 1fr 1fr",
             gap: 24,
+            flexShrink: 0,
           }}
         >
           <div>
@@ -1824,11 +1829,12 @@ export default function WarrantCalculator() {
         </div>
 
         {/* ───────────── SCENARIO TABLE ───────────── */}
-        <div style={{ ...cardStyle, marginBottom: 28 }}>
+        <div style={{ ...cardStyle, marginBottom: 28, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div
             style={{
               padding: "16px 24px",
               borderBottom: "1px solid #1a2035",
+              flexShrink: 0,
             }}
           >
             <h2
@@ -1849,7 +1855,7 @@ export default function WarrantCalculator() {
             </p>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
+          <div style={{ overflow: "auto", flex: 1, minHeight: 0 }}>
             <table
               style={{
                 width: "100%",
@@ -1879,6 +1885,10 @@ export default function WarrantCalculator() {
                         letterSpacing: 1,
                         fontWeight: 500,
                         whiteSpace: "nowrap",
+                        position: "sticky",
+                        top: 0,
+                        background: "#0d1117",
+                        zIndex: 1,
                       }}
                     >
                       {h}
