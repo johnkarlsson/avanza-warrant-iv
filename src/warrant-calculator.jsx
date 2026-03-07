@@ -386,6 +386,15 @@ export default function WarrantCalculator() {
     setSearching(false);
   }, [underlyingId, direction, subType, endDate, sortField, sortOrder, riskFreeRate]);
 
+  // ── Re-search when direction changes ──
+  const directionRef = useRef(direction);
+  useEffect(() => {
+    if (directionRef.current !== direction) {
+      directionRef.current = direction;
+      if (searchResults.length > 0) doSearch();
+    }
+  }, [direction]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Enriched results for display ──
   const enrichedResults = useMemo(() => {
     const enriched = searchResults.map((w) => {
