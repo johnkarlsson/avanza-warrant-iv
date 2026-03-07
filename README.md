@@ -1,295 +1,112 @@
 # Avanza Warrant Tools
 
-Warrant search, implied volatility calculator, and Black-Scholes scenario analysis. Uses Avanza's internal API (no authentication required).
+A React web app for searching, analyzing, and pricing warrants listed on Avanza. Combines real-time warrant data with Black-Scholes modeling to help evaluate warrant pricing.
 
-## Web UI
+Uses Avanza's internal API — no authentication required.
+
+## Features
+
+### Warrant Search
+- Filter warrants by underlying instrument, direction (call/put), type (vanilla, turbo, knockout, mini future), issuer, and expiry date
+- Results show live prices, strike, parity, and calculated implied volatility
+- Activity score ranking based on trading volume
+- Direct links to warrant pages on Avanza
+
+### Implied Volatility
+- Newton-Raphson IV solver for each warrant using Black-Scholes
+- Median IV auto-calculated across search results
+- IV vs realized volatility comparison to identify expensive/cheap warrants
+
+### Scenario Analysis
+- Click any warrant row to populate the calculator
+- Theoretical P&L across different underlying price moves
+- Adjustable inputs: spot, strike, parity, volatility, days to expiry, risk-free rate
+
+### Historical Price Chart
+- Interactive price chart for the underlying instrument (1W to 5Y)
+- 30/60/90-day realized volatility with regime classification
+- Rolling 90-day RV distribution (5-year lookback) split by up/down periods
+- IV percentile rank against historical RV
+- Simulated price path overlay from scenario analysis
+
+### Shell Scripts
+- `search-warrants.sh` — search and filter warrants from the command line
+- `get-warrant.sh` — fetch details for a single warrant by orderbook ID
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18+)
+- [Bun](https://bun.sh/) (package manager)
+
+Install Bun if you don't have it:
 
 ```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+## Installation
+
+```bash
+git clone <repo-url>
+cd avanza
 bun install
+```
+
+## Usage
+
+### Web UI
+
+```bash
 bun run dev
 ```
 
-Opens at http://localhost:5173. Features:
+Opens at http://localhost:5173.
 
-- **Search** — filter SG warrants by underlying, direction, type, expiry date
-- **Implied volatility** — inverted BS calculation for each search result
-- **Median IV** — auto-populates the scenario calculator below
-- **Click a row** — populates all calculator fields (spot, strike, parity, price, vol, days)
-- **Scenario analysis** — theoretical P&L across different underlying moves
-- **IV solver** — Newton-Raphson inversion with step-by-step output
-
-## Shell Scripts
-
-### `search-warrants.sh` — Search & filter warrants
+### Shell Scripts
 
 ```bash
-# All warrants (first 20)
-./search-warrants.sh
+# Search warrants (e.g. Swedbank A puts)
+./search-warrants.sh -u 5241 -d short -t plain_vanilla
 
-# Filter by underlying instrument (Swedbank A = 5241)
-./search-warrants.sh -u 5241
+# Get details for a specific warrant
+./get-warrant.sh 2072779
 
-# Combine filters
-./search-warrants.sh -u 5241 -d short -t plain_vanilla -i "societe generale"
-
-# Custom sort and limit
-./search-warrants.sh -u 5241 -s strikePrice -o asc -l 50
-
-# Raw JSON output
-./search-warrants.sh -u 5241 -r
-
-# See all valid filter values (issuers, underlyings, dates, etc.)
+# See all filter options
 ./search-warrants.sh --list-options
 ```
 
-### `get-warrant.sh` — Fetch details for a single warrant
+## Dependencies
 
-```bash
-# By orderbook ID (from search results or Avanza URL)
-./get-warrant.sh 2072779
-
-# Raw JSON
-./get-warrant.sh 2072779 -r
-```
-
-## API Reference
-
-### POST `/_api/market-warrant-filter/`
-
-Filtered search for warrants. Returns a paginated list.
-
-#### Request body
-
-```json
-{
-  "filter": {
-    "underlyingInstruments": ["5241"],
-    "directions": ["short"],
-    "issuers": ["societe generale"],
-    "subTypes": ["plain_vanilla"],
-    "endDates": ["2026-12-18"],
-    "categories": ["warrant_asset|equity|root"],
-    "exposures": ["sweden"],
-    "marketplaces": []
-  },
-  "offset": 0,
-  "limit": 20,
-  "sortBy": {
-    "field": "stopLoss",
-    "order": "desc"
-  }
-}
-```
-
-All filter arrays can be empty `[]` (no filter) or contain one or more values.
-
-#### Filter: `issuers`
-
-| Value | Display Name |
+### Runtime
+| Package | Purpose |
 |---|---|
-| `bnp paribas` | BNP Paribas |
-| `handelsbanken` | Handelsbanken |
-| `j.p. morgan se` | J.P. Morgan SE |
-| `morgan stanley` | Morgan Stanley |
-| `nordea` | Nordea |
-| `societe generale` | Societe Generale |
-| `vontobel` | Vontobel |
+| [react](https://react.dev/) | UI framework |
+| [react-dom](https://react.dev/) | React DOM rendering |
+| [recharts](https://recharts.org/) | Charts (historical price, area charts) |
 
-#### Filter: `directions`
-
-| Value | Display Name |
+### Development
+| Package | Purpose |
 |---|---|
-| `long` | Lång (Call/Bull) |
-| `short` | Kort (Put/Bear) |
+| [vite](https://vite.dev/) | Dev server and bundler |
+| [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react) | React JSX/HMR support for Vite |
 
-#### Filter: `subTypes`
-
-| Value | Display Name |
-|---|---|
-| `plain_vanilla` | Warrant |
-| `turbo` | Turbowarrant |
-| `knock_out` | Knockoutwarrant |
-| `mini_future` | Mini Future |
-
-#### Filter: `underlyingInstruments`
-
-Values are Avanza orderbook IDs. There are 1100+ underlyings. Some common ones:
-
-| Value | Name | Warrants |
-|---|---|---|
-| `5241` | Swedbank A | 56 |
-| `5364` | H&M B | 32 |
-| `5401` | SAAB B | 32 |
-| `5255` | SEB A | 31 |
-| `52300` | Novo Nordisk B | 29 |
-| `4478` | NVIDIA | 36 |
-| `238449` | Tesla | 52 |
-| `5269` | Volvo B | 45 |
-| `155541` | Nasdaq 100 | 38 |
-| `5234` | Atlas Copco A | 34 |
-| `19002` | OMX Stockholm 30 | 33 |
-| `18981` | DAX | 30 |
-| `549768` | Evolution | 23 |
-| `5240` | Ericsson B | 24 |
-| `18986` | Guld (Gold) | 25 |
-| `18991` | Silver | 25 |
-| `350795` | Meta Platforms A | 17 |
-| `155722` | Olja (Oil) | 8 |
-| `19000` | USD/SEK | ? |
-
-Use `./search-warrants.sh --list-options` for the complete list with current warrant counts.
-
-#### Filter: `endDates`
-
-Maturity dates in `YYYY-MM-DD` format. Valid values change over time. Use `--list-options` to see current dates.
-
-#### Filter: `categories`
-
-Hierarchical category strings using `|` as separator:
-
-| Value | Description |
-|---|---|
-| `warrant_asset\|equity\|root` | Equities (stocks, indices, ETFs) |
-| `single stock\|sub_level\|warrant_asset\|equity\|root` | Single stocks only |
-| `stock index\|sub_level\|warrant_asset\|equity\|root` | Stock indices only |
-| `dax\|sub_sub_level\|stock index\|sub_level\|warrant_asset\|equity\|root` | DAX specifically |
-| `warrant_asset\|commodity\|root` | Commodities |
-| `warrant_asset\|currency\|root` | Currencies |
-| `warrant_asset\|fixed income\|root` | Fixed income / bonds |
-| `warrant_asset\|alternative\|root` | Alternatives (crypto, etc.) |
-
-#### Filter: `exposures`
-
-| Value | Display Name |
-|---|---|
-| `sweden` | Sverige |
-| `usa` | USA |
-| `germany` | Tyskland |
-| `denmark` | Danmark |
-| `other` | Resten av världen |
-
-#### Sort fields
-
-Known working sort fields (used in `sortBy.field`):
-
-- `stopLoss`
-- `name`
-- `totalValueTraded`
-
-Note: `strikePrice`, `lastPrice`, and `oneDayChangePercent` were previously documented but now return HTTP 400.
-
-Sort order: `asc` or `desc`.
-
-#### Pagination
-
-- `offset`: starting index (default 0)
-- `limit`: max results per page (default 20)
-
-#### Response
-
-```json
-{
-  "warrants": [
-    {
-      "orderbookId": "2072779",
-      "countryCode": "SE",
-      "name": "SWE6X 240SG",
-      "direction": "short",
-      "issuer": "Societe Generale",
-      "subType": "PLAIN_VANILLA",
-      "hasPosition": false,
-      "underlyingInstrument": {
-        "name": "Swedbank A",
-        "orderbookId": "5241",
-        "instrumentType": "STOCK",
-        "countryCode": "SE"
-      },
-      "totalValueTraded": 0,
-      "oneDayChangePercent": 0.0
-    }
-  ],
-  "filter": { ... },
-  "pagination": { "offset": 0, "limit": 20 },
-  "sortBy": { "field": "stopLoss", "order": "desc" },
-  "totalNumberOfOrderbooks": 16,
-  "filterOptions": { ... }
-}
+## Architecture
 
 ```
-
-### GET `/_api/market-warrant-filter/filter-options`
-
-Returns all valid filter values with current warrant counts. No parameters needed.
-
-### GET `/_api/market-guide/warrant/{orderbookId}`
-
-Returns detailed information about a single warrant including quote, key indicators, historical prices, and underlying instrument data.
-
-#### Response fields
-
-```json
-{
-  "orderbookId": "2072779",
-  "name": "SWE6X 240SG",
-  "isin": "DE000FA1R8U4",
-  "tradable": "BUYABLE_AND_SELLABLE",
-  "type": "WARRANT",
-  "listing": {
-    "shortName": "SWE6X 240SG",
-    "tickerSymbol": "SWE6X 240SG",
-    "currency": "SEK",
-    "marketPlaceName": "Nordic MTF",
-    "countryCode": "SE"
-  },
-  "keyIndicators": {
-    "parity": 10,
-    "direction": "Kort",
-    "strikePrice": 240,
-    "barrierLevel": 0,
-    "financingLevel": 0,
-    "numberOfOwners": 1,
-    "subType": "PLAIN_VANILLA"
-  },
-  "quote": {
-    "last": 0.5,
-    "change": 0.0,
-    "changePercent": 0.0,
-    "timeOfLast": 1772830800000,
-    "totalValueTraded": 0,
-    "totalVolumeTraded": 0,
-    "updated": 1772830804472
-  },
-  "historicalClosingPrices": {
-    "oneDay": 0.5,
-    "oneWeek": 1.31,
-    "oneMonth": 1.31,
-    "threeMonths": 1.31,
-    "startOfYear": 1.31,
-    "start": 1.31,
-    "startDate": "2025-11-25"
-  },
-  "underlying": {
-    "orderbookId": "5241",
-    "name": "Swedbank A",
-    "last": 332.3,
-    "buy": 331.9,
-    "sell": 332.1,
-    "highest": 338.5,
-    "lowest": 327.9,
-    "change": -3.3,
-    "changePercent": -0.98,
-    "spread": 0.06,
-    "totalValueTraded": 690154149.05,
-    "totalVolumeTraded": 2074728,
-    "previousClosingPrice": 335.6
-  }
-}
+src/
+  main.jsx                 # App entry point
+  warrant-calculator.jsx   # Search, IV solver, BS calculator, scenario table
+  historical-chart.jsx     # Price chart, realized vol, IV vs RV analysis
+index.html                 # Shell HTML
+vite.config.js             # Vite config with API proxy
+search-warrants.sh         # CLI warrant search
+get-warrant.sh             # CLI warrant detail fetch
 ```
+
+The Vite dev server proxies `/api/*` requests to `https://www.avanza.se/_api/*` to avoid CORS issues.
 
 ## Notes
 
 - These APIs are **undocumented and unofficial**. They can change without warning.
-- **No authentication** is required for these read-only market data endpoints.
-- Avanza's terms of use prohibit automated access without written consent (see Företagswebb Användarvillkor).
 - Data may be delayed by 15 minutes.
-- The `keyIndicators` fields vary by warrant subType: plain vanilla warrants have `strikePrice`, mini futures have `barrierLevel` and `financingLevel`.
+- Avanza's terms of use prohibit automated access without written consent.
