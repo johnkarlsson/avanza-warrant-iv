@@ -945,10 +945,10 @@ export default function WarrantCalculator() {
                       "Name",
                       "Dir",
                       "Expiry",
+                      "Underlying",
                       "Strike",
                       "Parity",
                       "Price",
-                      "Underlying",
                       "IV",
                     ].map((h, i) => (
                       <th
@@ -1026,6 +1026,17 @@ export default function WarrantCalculator() {
                         style={{
                           padding: "12px 14px",
                           textAlign: "right",
+                          color: "#aaa",
+                        }}
+                      >
+                        {r.spotPrice != null
+                          ? `${r.spotPrice.toFixed(1)}`
+                          : "--"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px 14px",
+                          textAlign: "right",
                           color: "#fff",
                           fontWeight: 500,
                         }}
@@ -1051,17 +1062,6 @@ export default function WarrantCalculator() {
                       >
                         {r.lastPrice != null
                           ? `${r.lastPrice.toFixed(2)}`
-                          : "--"}
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px 14px",
-                          textAlign: "right",
-                          color: "#aaa",
-                        }}
-                      >
-                        {r.spotPrice != null
-                          ? `${r.spotPrice.toFixed(1)}`
                           : "--"}
                       </td>
                       <td
