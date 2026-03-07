@@ -147,7 +147,7 @@ export default function WarrantCalculator() {
   const [subType, setSubType] = useState("plain_vanilla");
   const [endDate, setEndDate] = useState("");
   const [availableEndDates, setAvailableEndDates] = useState([]);
-  const [sortField, setSortField] = useState("name");
+  const [sortField, setSortField] = useState("iv");
   const [sortOrder, setSortOrder] = useState("asc");
   const [searchResults, setSearchResults] = useState([]);
   const [warrantDetails, setWarrantDetails] = useState({});
@@ -193,7 +193,8 @@ export default function WarrantCalculator() {
   const simIdRef = useRef(0);
   const lastSimTargetRef = useRef(null);
   const [activeScenario, setActiveScenario] = useState(null);
-  const [needsSelection, setNeedsSelection] = useState(false);
+  const [needsSelection, setNeedsSelection] = useState(true);
+  const [cacheLoaded, setCacheLoaded] = useState(false);
 
   // ── Load cache on mount ──
   useEffect(() => {
@@ -227,11 +228,13 @@ export default function WarrantCalculator() {
           if (calc.calcDirection != null) setCalcDirection(calc.calcDirection);
           if (calc.warrantName != null) setWarrantName(calc.warrantName);
           if (calc.underlyingName != null) setUnderlyingName(calc.underlyingName);
+          if (calc.selectedWarrantId != null) setNeedsSelection(false);
         }
       }
     } catch (e) {
       console.error("Failed to load cache:", e);
     }
+    setCacheLoaded(true);
   }, []);
 
   // ── Save search results to cache ──
@@ -825,6 +828,7 @@ export default function WarrantCalculator() {
         }
         select { -webkit-appearance: none; appearance: none; }
         @keyframes sim-spin { to { transform: rotate(360deg); } }
+        @keyframes bounce-up { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         tr.result-row { cursor: pointer; transition: background 0.15s; }
         tr.result-row:hover { background: rgba(79,195,247,0.06) !important; }
         * { scrollbar-width: thin; scrollbar-color: #1a2035 transparent; }
@@ -1155,6 +1159,12 @@ export default function WarrantCalculator() {
               {searching ? "Searching..." : "Search warrants"}
             </button>
 
+            {cacheLoaded && searchResults.length === 0 && !searching && (
+              <div style={{ textAlign: "center", marginTop: 8, fontSize: 28, animation: "bounce-up 1s ease-in-out infinite" }}>
+                👆
+              </div>
+            )}
+
             {searchError && (
               <div
                 style={{
@@ -1480,7 +1490,7 @@ export default function WarrantCalculator() {
             <span style={{
               fontSize: 28,
               fontWeight: 700,
-              color: "#4a5078",
+              color: "#ffffff",
               fontFamily: "'JetBrains Mono', monospace",
               textAlign: "center",
               padding: 40,
@@ -2034,6 +2044,13 @@ export default function WarrantCalculator() {
         >
           Black-Scholes model · Assumes European-style exercise · Not investment
           advice · Actual pricing depends on market maker spreads and liquidity
+          {" · "}
+          <span
+            onClick={() => { localStorage.clear(); window.location.reload(); }}
+            style={{ cursor: "pointer", textDecoration: "underline" }}
+          >
+            Clear cache
+          </span>
         </div>
         </div>
       </div>
