@@ -2005,6 +2005,7 @@ export default function WarrantCalculator() {
           underlyingId={underlyingId}
           medianIV={medianIV}
           onRvDist={setRvDist}
+          onVolClick={(v) => { setVol(v); setResimTrigger((n) => n + 1); }}
           simulationData={simulationData}
           simTimeoutPaths={simTimeoutPaths}
           simTimeoutTarget={simTimeoutTarget}

@@ -175,7 +175,7 @@ const statBox = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function HistoricalChart({ underlyingName, underlyingId, medianIV, onRvDist, simulationData, simTimeoutPaths, simTimeoutTarget, simulating, direction }) {
+export default function HistoricalChart({ underlyingName, underlyingId, medianIV, onRvDist, onVolClick, simulationData, simTimeoutPaths, simTimeoutTarget, simulating, direction }) {
   const [intervalIdx, setIntervalIdx] = useState(4);
   const [stockId, setStockId] = useState(underlyingId || "");
   const [stockLabel, setStockLabel] = useState(underlyingName || "");
@@ -981,6 +981,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                         {item.label}
                       </div>
                       <div
+                        onClick={() => item.value != null && onVolClick?.(Math.round(item.value))}
                         style={{
                           fontSize: 18,
                           fontWeight: 700,
@@ -988,6 +989,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                             item.value != null
                               ? volRegime(item.value).color
                               : "#3a4060",
+                          cursor: item.value != null ? "pointer" : undefined,
                         }}
                       >
                         {item.value != null
@@ -1034,7 +1036,10 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                         {item.values.map((v, j) => (
                           <span key={j}>
                             {j > 0 && <span style={{ color: dimmed ? "#3a4060" : "#6b7394" }}> / </span>}
-                            <span style={{ color: dimmed ? "#3a4060" : volRegime(v ?? 0).color, fontWeight: 600 }}>
+                            <span
+                              onClick={() => v != null && !dimmed && onVolClick?.(Math.round(v))}
+                              style={{ color: dimmed ? "#3a4060" : volRegime(v ?? 0).color, fontWeight: 600, cursor: v != null && !dimmed ? "pointer" : undefined }}
+                            >
                               {v != null ? `${v.toFixed(1)}%` : "--"}
                             </span>
                           </span>
