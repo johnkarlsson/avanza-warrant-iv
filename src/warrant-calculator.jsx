@@ -1903,7 +1903,10 @@ export default function WarrantCalculator() {
                         i < scenarioResults.length - 1
                           ? "1px solid #131a2e"
                           : "none",
-                      background: "transparent",
+                      background:
+                        r.change === activeScenario
+                          ? "rgba(79,195,247,0.08)"
+                          : "transparent",
                     }}
                   >
                     {(() => {
