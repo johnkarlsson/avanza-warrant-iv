@@ -388,7 +388,7 @@ export default function WarrantCalculator() {
 
   // ── Enriched results for display ──
   const enrichedResults = useMemo(() => {
-    return searchResults.map((w) => {
+    const enriched = searchResults.map((w) => {
       const d = warrantDetails[w.orderbookId];
       return {
         ...w,
@@ -401,7 +401,18 @@ export default function WarrantCalculator() {
         currency: d?.listing?.currency || "SEK",
       };
     });
-  }, [searchResults, warrantDetails, computedIVs]);
+    if (sortField !== "name") {
+      const dir = sortOrder === "asc" ? 1 : -1;
+      enriched.sort((a, b) => {
+        const av = a[sortField], bv = b[sortField];
+        if (av == null && bv == null) return 0;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        return (av - bv) * dir;
+      });
+    }
+    return enriched;
+  }, [searchResults, warrantDetails, computedIVs, sortField, sortOrder]);
 
   // ── Median IV display ──
   const medianIV = useMemo(() => {
@@ -738,8 +749,9 @@ export default function WarrantCalculator() {
                   style={inputStyle}
                 >
                   <option value="name">Name</option>
-                  <option value="stopLoss">Stop loss / Strike</option>
-                  <option value="totalValueTraded">Turnover</option>
+                  <option value="strike">Strike</option>
+                  <option value="lastPrice">Price</option>
+                  <option value="iv">IV</option>
                 </select>
               </div>
 
