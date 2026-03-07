@@ -175,6 +175,22 @@ export default function WarrantCalculator() {
   const [ivResult, setIvResult] = useState(null);
   const [showSteps, setShowSteps] = useState(false);
 
+  // ── Load cache on mount ──
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("avanza_warrant_cache");
+      if (raw) {
+        const { results, details, ivs, total } = JSON.parse(raw);
+        if (results) setSearchResults(results);
+        if (details) setWarrantDetails(details);
+        if (ivs) setComputedIVs(ivs);
+        if (total != null) setTotalResults(total);
+      }
+    } catch (e) {
+      console.error("Failed to load cache:", e);
+    }
+  }, []);
+
   // ── Load filter options on mount ──
   useEffect(() => {
     fetch("/api/market-warrant-filter/filter-options")
@@ -272,6 +288,18 @@ export default function WarrantCalculator() {
         }
       }
       setComputedIVs(ivMap);
+
+      // Save to cache
+      try {
+        localStorage.setItem("avanza_warrant_cache", JSON.stringify({
+          results: warrants,
+          details,
+          ivs: ivMap,
+          total: data.totalNumberOfOrderbooks || 0,
+        }));
+      } catch (e) {
+        console.error("Failed to save cache:", e);
+      }
 
       // Set median IV as the vol for the calculator
       const ivValues = Object.values(ivMap);
@@ -1187,10 +1215,24 @@ export default function WarrantCalculator() {
               >
                 Days from now
               </span>
-              <span
-                style={{ fontSize: 13, color: "#4fc3f7", fontWeight: 600 }}
-              >
-                {totalDaysToExpiry - daysToExpiry}d
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span
+                  style={{ fontSize: 13, color: "#4fc3f7", fontWeight: 600 }}
+                >
+                  {totalDaysToExpiry - daysToExpiry}d
+                </span>
+                <span
+                  onClick={() => setDaysToExpiry(Math.max(1, daysToExpiry - 30))}
+                  style={{
+                    fontSize: 11,
+                    color: "#4fc3f7",
+                    cursor: "pointer",
+                    opacity: 0.6,
+                    userSelect: "none",
+                  }}
+                >
+                  +30
+                </span>
               </span>
             </div>
             <input
