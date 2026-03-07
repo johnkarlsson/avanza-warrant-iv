@@ -192,6 +192,7 @@ export default function WarrantCalculator() {
   const [showIVModal, setShowIVModal] = useState(false);
   const simIdRef = useRef(0);
   const lastSimTargetRef = useRef(null);
+  const [activeScenario, setActiveScenario] = useState(null);
 
   // ── Load cache on mount ──
   useEffect(() => {
@@ -598,24 +599,21 @@ export default function WarrantCalculator() {
 
   // ── Scenario analysis ──
   const scenarios = useMemo(() => {
-    if (calcDirection === "long") {
-      return [
-        { label: "Mild rally", change: 5 },
-        { label: "Moderate rally", change: 10 },
-        { label: "Strong rally", change: 15 },
-        { label: "Surge", change: 20 },
-        { label: "Near strike", change: 25 },
-        { label: "Above strike", change: 30 },
-      ];
-    }
-    return [
-      { label: "Mild dip", change: -5 },
-      { label: "Moderate correction", change: -10 },
-      { label: "Significant sell-off", change: -15 },
-      { label: "Severe downturn", change: -20 },
-      { label: "Near strike", change: -25 },
-      { label: "Below strike", change: -30 },
+    const all = [
+      { change: -30 },
+      { change: -25 },
+      { change: -20 },
+      { change: -15 },
+      { change: -10 },
+      { change: -5 },
+      { change: 5 },
+      { change: 10 },
+      { change: 15 },
+      { change: 20 },
+      { change: 25 },
+      { change: 30 },
     ];
+    return calcDirection === "long" ? all.slice().reverse() : all;
   }, [calcDirection]);
 
   const scenarioResults = useMemo(() => {
@@ -641,7 +639,7 @@ export default function WarrantCalculator() {
       const prob = daysFromNow <= 0 ? 0
         : (() => {
             const d2 = (Math.log(spotPrice / newSpot) + (riskFreeRate - sigma * sigma / 2) * Tprob) / (sigma * Math.sqrt(Tprob));
-            return calcDirection === "short" ? cdf(-d2) : cdf(d2);
+            return s.change < 0 ? cdf(-d2) : cdf(d2);
           })();
 
       return {
@@ -1819,15 +1817,15 @@ export default function WarrantCalculator() {
                 width: "100%",
                 borderCollapse: "collapse",
                 fontSize: 13,
+                tableLayout: "fixed",
               }}
             >
               <thead>
                 <tr style={{ borderBottom: "1px solid #1a2035" }}>
                   {[
-                    "Scenario",
+                    <span>Price in <span style={{ color: "#4fc3f7" }}>{totalDaysToExpiry - daysToExpiry}d</span></span>,
                     "Change",
-                    "Prob",
-                    underlyingName || "Spot",
+                    "Probability",
                     "Intrinsic",
                     "Warrant value",
                     "Return",
@@ -1836,7 +1834,7 @@ export default function WarrantCalculator() {
                       key={i}
                       style={{
                         padding: "12px 16px",
-                        textAlign: i === 0 ? "left" : i === 2 ? "center" : "right",
+                        textAlign: i === 2 ? "center" : "right",
                         fontSize: 10,
                         color: "#6b7394",
                         textTransform: "uppercase",
@@ -1856,6 +1854,7 @@ export default function WarrantCalculator() {
                     key={i}
                     className="result-row"
                     onClick={() => {
+                      setActiveScenario(r.change);
                       simulateForScenario(parseFloat(r.newSpot), r.change);
                       setTimeout(() => {
                         if (!isPanelVisible(2)) scrollToPanel(2);
@@ -1871,14 +1870,19 @@ export default function WarrantCalculator() {
                         : "transparent",
                     }}
                   >
+                    {(() => {
+                      const active = r.change === activeScenario;
+                      const blue = "#4fc3f7";
+                      return (
+                        <>
                     <td
                       style={{
                         padding: "12px 16px",
-                        fontWeight: 500,
-                        color: "#c8cdd8",
+                        textAlign: "right",
+                        color: active ? blue : "#fff",
                       }}
                     >
-                      {r.label}
+                      {r.newSpot}
                     </td>
                     <td
                       style={{
@@ -1894,7 +1898,7 @@ export default function WarrantCalculator() {
                     <td
                       style={{
                         padding: "12px 16px",
-                        color: "#b0bec5",
+                        color: active ? blue : "#b0bec5",
                       }}
                     >
                       <span style={{ display: "flex", fontVariantNumeric: "tabular-nums", fontFamily: "monospace", fontSize: 12 }}>
@@ -1914,15 +1918,6 @@ export default function WarrantCalculator() {
                       style={{
                         padding: "12px 16px",
                         textAlign: "right",
-                        color: "#fff",
-                      }}
-                    >
-                      {r.newSpot}
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        textAlign: "right",
                         color:
                           parseFloat(r.intrinsic) > 0
                             ? "#4caf50"
@@ -1936,14 +1931,14 @@ export default function WarrantCalculator() {
                         padding: "12px 16px",
                         textAlign: "right",
                         fontWeight: 600,
-                        color:
-                          parseFloat(r.warrantVal) > warrantPrice
-                            ? "#4fc3f7"
-                            : "#c8cdd8",
+                        color: active ? blue : "#fff",
                       }}
                     >
                       {r.warrantVal} SEK
                     </td>
+                        </>
+                      );
+                    })()}
                     <td
                       style={{
                         padding: "12px 16px",
