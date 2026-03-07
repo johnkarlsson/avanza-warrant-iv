@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import HistoricalChart from "./historical-chart.jsx";
 
 // ── Black-Scholes math ─────────────────────────────────────────────────────
 
@@ -1331,6 +1332,12 @@ export default function WarrantCalculator() {
             </table>
           </div>
         </div>
+
+        {/* ───────────── HISTORICAL CHART ───────────── */}
+        <HistoricalChart
+          underlyingName={underlyingSearch}
+          medianIV={medianIV}
+        />
 
         {/* ───────────── IV SOLVER ───────────── */}
         <div style={{ ...cardStyle, marginBottom: 28 }}>
