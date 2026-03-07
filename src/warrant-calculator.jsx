@@ -135,6 +135,9 @@ const cardStyle = {
 
 export default function WarrantCalculator() {
   const detailsRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const [activePanel, setActivePanel] = useState(0);
+  const [visiblePanels, setVisiblePanels] = useState(1);
 
   // ── Search state ──
   const [underlyings, setUnderlyings] = useState([]);
@@ -487,6 +490,48 @@ export default function WarrantCalculator() {
       : (ivValues[mid - 1] + ivValues[mid]) / 2;
   }, [computedIVs]);
 
+  // ── Panel navigation ──
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      setVisiblePanels(w >= 2024 ? 3 : w >= 1700 ? 2 : 1);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  const scrollToPanel = useCallback((index) => {
+    const container = scrollContainerRef.current;
+    if (!container || !container.children[index]) return;
+    const panel = container.children[index];
+    const pad = parseFloat(getComputedStyle(container).paddingLeft) || 0;
+    container.scrollTo({ left: panel.offsetLeft - pad, behavior: "smooth" });
+  }, []);
+
+  const isPanelVisible = useCallback((index) => {
+    const container = scrollContainerRef.current;
+    if (!container || !container.children[index]) return true;
+    const panel = container.children[index];
+    const pad = parseFloat(getComputedStyle(container).paddingLeft) || 0;
+    const panelLeft = panel.offsetLeft - pad;
+    const panelRight = panelLeft + panel.offsetWidth;
+    const visLeft = container.scrollLeft;
+    const visRight = visLeft + container.clientWidth;
+    return panelLeft >= visLeft && panelRight <= visRight;
+  }, []);
+
+  const handleContainerScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const pad = parseFloat(getComputedStyle(container).paddingLeft) || 0;
+    const pw = container.children[0]?.offsetWidth || 0;
+    if (pw > 0) setActivePanel(Math.round((container.scrollLeft) / pw));
+  }, []);
+
+  const canGoLeft = activePanel > 0;
+  const canGoRight = activePanel < 3 - visiblePanels;
+
   // ── Select a warrant row ──
   const selectWarrant = useCallback(
     (w) => {
@@ -532,10 +577,10 @@ export default function WarrantCalculator() {
       setIvType(w.direction === "short" ? "put" : "call");
 
       setTimeout(() => {
-        detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (!isPanelVisible(1)) scrollToPanel(1);
       }, 0);
     },
-    [warrantDetails, computedIVs]
+    [warrantDetails, computedIVs, scrollToPanel, isPanelVisible]
   );
 
   // ── IV Solver (auto-run) ──
@@ -712,11 +757,12 @@ export default function WarrantCalculator() {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        height: "100vh",
+        overflow: "hidden",
+        position: "relative",
         background: "#0a0e17",
         color: "#c8cdd8",
         fontFamily: "'JetBrains Mono', 'Fira Code', 'SF Mono', monospace",
-        padding: "32px 24px",
       }}
     >
       <style>{`
@@ -742,9 +788,64 @@ export default function WarrantCalculator() {
         *::-webkit-scrollbar-track { background: transparent; }
         *::-webkit-scrollbar-thumb { background: #1a2035; border-radius: 3px; }
         *::-webkit-scrollbar-thumb:hover { background: #2a3050; }
+        :root { --panel-count: 1; --arrow-gutter: 48px; }
+        @media (min-width: 1700px) { :root { --panel-count: 2; } }
+        @media (min-width: 2024px) { :root { --panel-count: 3; --arrow-gutter: 0px; } }
+        .panel-container {
+          display: flex;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          padding-left: var(--arrow-gutter);
+          padding-right: var(--arrow-gutter);
+        }
+        .panel-container::-webkit-scrollbar { display: none; }
+        .panel {
+          flex: 0 0 calc((100vw - 2 * var(--arrow-gutter)) / var(--panel-count));
+          min-width: calc((100vw - 2 * var(--arrow-gutter)) / var(--panel-count));
+          scroll-snap-align: start;
+          height: calc(100vh - 64px);
+          overflow-y: auto;
+          padding: 0 16px;
+          box-sizing: border-box;
+        }
+        .nav-arrow {
+          position: fixed; top: 50%; transform: translateY(-50%); z-index: 100;
+          width: 44px; height: 44px; border-radius: 50%;
+          border: 1px solid #1a2035; background: rgba(17,23,40,0.9);
+          backdrop-filter: blur(8px);
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; font-size: 22px; font-weight: 300;
+          transition: color 0.2s, border-color 0.2s;
+        }
+        .nav-arrow:hover { border-color: #4fc3f7; }
+        .nav-arrow-left { left: 6px; }
+        .nav-arrow-right { right: 6px; }
+        @media (min-width: 2024px) { .nav-arrow { display: none; } }
       `}</style>
 
-      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+      {visiblePanels < 3 && (
+        <>
+          <button
+            className="nav-arrow nav-arrow-left"
+            onClick={() => canGoLeft && scrollToPanel(activePanel - 1)}
+            style={{ color: canGoLeft ? "#fff" : "#3a4060" }}
+          >
+            &#8249;
+          </button>
+          <button
+            className="nav-arrow nav-arrow-right"
+            onClick={() => canGoRight && scrollToPanel(activePanel + 1)}
+            style={{ color: canGoRight ? "#fff" : "#3a4060" }}
+          >
+            &#8250;
+          </button>
+        </>
+      )}
+
+      <div ref={scrollContainerRef} className="panel-container" onScroll={handleContainerScroll} style={{ padding: "32px 0" }}>
+        <div className="panel">
         {/* ───────────── SEARCH SECTION ───────────── */}
         <div style={{ ...cardStyle, marginBottom: 28 }}>
           <div
@@ -1080,7 +1181,7 @@ export default function WarrantCalculator() {
               )}
             </div>
 
-            <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: 420 }}>
+            <div style={{ overflowX: "auto" }}>
               <table
                 style={{
                   width: "100%",
@@ -1096,7 +1197,7 @@ export default function WarrantCalculator() {
                       "Expiry",
                       "Underlying",
                       "Strike",
-                      "Strike (%)",
+                      "(%)",
                       "Parity",
                       "Price",
                       "IV",
@@ -1302,6 +1403,9 @@ export default function WarrantCalculator() {
           </div>
         )}
 
+        </div>
+
+        <div className="panel">
         {/* ───────────── CALCULATOR HEADER ───────────── */}
         <div ref={detailsRef} style={{ marginBottom: 32, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
@@ -1678,7 +1782,7 @@ export default function WarrantCalculator() {
                   {[
                     "Scenario",
                     "Change",
-                    "Probability",
+                    "Prob",
                     underlyingName || "Spot",
                     "Intrinsic",
                     "Warrant value",
@@ -1707,7 +1811,12 @@ export default function WarrantCalculator() {
                   <tr
                     key={i}
                     className="result-row"
-                    onClick={() => simulateForScenario(parseFloat(r.newSpot), r.change)}
+                    onClick={() => {
+                      simulateForScenario(parseFloat(r.newSpot), r.change);
+                      setTimeout(() => {
+                        if (!isPanelVisible(2)) scrollToPanel(2);
+                      }, 0);
+                    }}
                     style={{
                       borderBottom:
                         i < scenarioResults.length - 1
@@ -1799,6 +1908,9 @@ export default function WarrantCalculator() {
           </div>
         </div>
 
+        </div>
+
+        <div className="panel">
         {/* ───────────── HISTORICAL CHART ───────────── */}
         <HistoricalChart
           underlyingName={underlyingSearch}
@@ -1809,6 +1921,21 @@ export default function WarrantCalculator() {
           simulating={simulating}
           direction={direction}
         />
+
+        {/* ───────────── FOOTER ───────────── */}
+        <div
+          style={{
+            fontSize: 10,
+            color: "#3a4060",
+            textAlign: "center",
+            padding: "8px 0",
+          }}
+        >
+          Black-Scholes model · Assumes European-style exercise · Not investment
+          advice · Actual pricing depends on market maker spreads and liquidity
+        </div>
+        </div>
+      </div>
 
         {/* ───────────── IV SOLVER MODAL ───────────── */}
         {showIVModal && (
@@ -2304,19 +2431,6 @@ export default function WarrantCalculator() {
           </div>
         )}
 
-        {/* ───────────── FOOTER ───────────── */}
-        <div
-          style={{
-            fontSize: 10,
-            color: "#3a4060",
-            textAlign: "center",
-            padding: "8px 0",
-          }}
-        >
-          Black-Scholes model · Assumes European-style exercise · Not investment
-          advice · Actual pricing depends on market maker spreads and liquidity
-        </div>
-      </div>
     </div>
   );
 }
