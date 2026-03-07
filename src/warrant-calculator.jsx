@@ -183,6 +183,7 @@ export default function WarrantCalculator() {
   const [simulationData, setSimulationData] = useState(null);
   const [simulating, setSimulating] = useState(false);
   const [resimTrigger, setResimTrigger] = useState(0);
+  const [showDynamicsModal, setShowDynamicsModal] = useState(false);
   const simIdRef = useRef(0);
   const lastSimTargetRef = useRef(null);
 
@@ -1292,68 +1293,92 @@ export default function WarrantCalculator() {
         )}
 
         {/* ───────────── CALCULATOR HEADER ───────────── */}
-        <div ref={detailsRef} style={{ marginBottom: 32 }}>
-          <div
-            style={{
-              display: "inline-block",
-              background:
-                calcDirection === "short" ? "#e53935" : "#4caf50",
-              color: "#fff",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: 2,
-              padding: "4px 10px",
-              borderRadius: 3,
-              marginBottom: 12,
-              textTransform: "uppercase",
-            }}
-          >
-            {optionTypeLabel} WARRANT
+        <div ref={detailsRef} style={{ marginBottom: 32, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div>
+            <div
+              style={{
+                display: "inline-block",
+                background:
+                  calcDirection === "short" ? "#e53935" : "#4caf50",
+                color: "#fff",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: 2,
+                padding: "4px 10px",
+                borderRadius: 3,
+                marginBottom: 12,
+                textTransform: "uppercase",
+              }}
+            >
+              {optionTypeLabel} WARRANT
+            </div>
+            <h1
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 28,
+                fontWeight: 700,
+                color: "#fff",
+                lineHeight: 1.2,
+              }}
+            >
+              {warrantName || "Select a warrant above"}
+              {warrantName && selectedWarrantId && (
+                <a
+                  href={`https://www.avanza.se/borshandlade-produkter/warranter-torg/om-warranten.html/${selectedWarrantId}/${warrantName.toLowerCase().replace(/\s+/g, "-")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-block",
+                    marginLeft: 10,
+                    padding: "2px 7px",
+                    fontSize: 13,
+                    lineHeight: 1,
+                    border: "1px solid #1a2035",
+                    borderRadius: 4,
+                    color: "#6b7394",
+                    textDecoration: "none",
+                    verticalAlign: "middle",
+                  }}
+                  title="Open on Avanza"
+                >
+                  <svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 1.5H2a.5.5 0 00-.5.5v8a.5.5 0 00.5.5h8a.5.5 0 00.5-.5V7.5"/><path d="M7 1.5h3.5V5"/><path d="M5 7L10.5 1.5"/></svg>
+                </a>
+              )}
+            </h1>
+            <p
+              style={{
+                fontSize: 13,
+                color: "#6b7394",
+                marginTop: 6,
+              }}
+            >
+              {underlyingName
+                ? `${underlyingName} · Strike ${strike} · Parity ${parity} · Black-Scholes scenario model`
+                : "Search and click a warrant to populate the calculator"}
+            </p>
           </div>
-          <h1
+          <button
+            onClick={() => setShowDynamicsModal(true)}
             style={{
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: 28,
+              flexShrink: 0,
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              border: "1px solid #2a1f5e",
+              background: "#1a1040",
+              color: "#b39ddb",
+              fontSize: 16,
               fontWeight: 700,
-              color: "#fff",
-              lineHeight: 1.2,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginTop: 4,
             }}
+            title="Key dynamics"
           >
-            {warrantName || "Select a warrant above"}
-            {warrantName && selectedWarrantId && (
-              <a
-                href={`https://www.avanza.se/borshandlade-produkter/warranter-torg/om-warranten.html/${selectedWarrantId}/${warrantName.toLowerCase().replace(/\s+/g, "-")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-block",
-                  marginLeft: 10,
-                  padding: "2px 7px",
-                  fontSize: 13,
-                  lineHeight: 1,
-                  border: "1px solid #1a2035",
-                  borderRadius: 4,
-                  color: "#6b7394",
-                  textDecoration: "none",
-                  verticalAlign: "middle",
-                }}
-                title="Open on Avanza"
-              >
-                <svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 1.5H2a.5.5 0 00-.5.5v8a.5.5 0 00.5.5h8a.5.5 0 00.5-.5V7.5"/><path d="M7 1.5h3.5V5"/><path d="M5 7L10.5 1.5"/></svg>
-              </a>
-            )}
-          </h1>
-          <p
-            style={{
-              fontSize: 13,
-              color: "#6b7394",
-              marginTop: 6,
-            }}
-          >
-            {underlyingName
-              ? `${underlyingName} · Strike ${strike} · Parity ${parity} · Black-Scholes scenario model`
-              : "Search and click a warrant to populate the calculator"}
-          </p>
+            ?
+          </button>
         </div>
 
         {/* ───────────── STATE CARDS ───────────── */}
@@ -2112,67 +2137,101 @@ export default function WarrantCalculator() {
           </div>
         </div>
 
-        {/* ───────────── KEY DYNAMICS ───────────── */}
-        <div
-          style={{
-            background: "linear-gradient(135deg, #1a1040 0%, #0d1525 100%)",
-            borderRadius: 10,
-            padding: "20px 24px",
-            border: "1px solid #2a1f5e",
-            marginBottom: 28,
-          }}
-        >
-          <h3
+        {/* ───────────── KEY DYNAMICS MODAL ───────────── */}
+        {showDynamicsModal && (
+          <div
+            onClick={() => setShowDynamicsModal(false)}
             style={{
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#b39ddb",
-              marginBottom: 10,
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
             }}
           >
-            Key dynamics to note
-          </h3>
-          <ul
-            style={{
-              fontSize: 12,
-              lineHeight: 1.8,
-              color: "#9e9ec0",
-              paddingLeft: 18,
-            }}
-          >
-            <li>
-              <strong style={{ color: "#c8cdd8" }}>
-                Time decay works against you
-              </strong>{" "}
-              — drag the days-to-expiry slider left to see how value evaporates
-              as expiry approaches, even if the stock moves.
-            </li>
-            <li>
-              <strong style={{ color: "#c8cdd8" }}>
-                Volatility is your friend
-              </strong>{" "}
-              — if implied vol spikes (crisis escalation), the warrant gains
-              value even without a stock move. Try pushing vol higher.
-            </li>
-            <li>
-              <strong style={{ color: "#c8cdd8" }}>
-                {calcDirection === "short"
-                  ? "You don't need to hit strike"
-                  : "You don't need to reach strike"}
-              </strong>{" "}
-              — a significant move with elevated vol can make warrants worth
-              multiples of entry.
-            </li>
-            <li>
-              <strong style={{ color: "#c8cdd8" }}>
-                Liquidity is the real risk
-              </strong>{" "}
-              — the order book may be thin, so theoretical value and realizable
-              value may diverge significantly.
-            </li>
-          </ul>
-        </div>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "linear-gradient(135deg, #1a1040 0%, #0d1525 100%)",
+                borderRadius: 12,
+                padding: "28px 32px",
+                border: "1px solid #2a1f5e",
+                maxWidth: 520,
+                width: "90%",
+                position: "relative",
+              }}
+            >
+              <button
+                onClick={() => setShowDynamicsModal(false)}
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 16,
+                  background: "none",
+                  border: "none",
+                  color: "#6b7394",
+                  fontSize: 20,
+                  cursor: "pointer",
+                  lineHeight: 1,
+                }}
+              >
+                &times;
+              </button>
+              <h3
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "#b39ddb",
+                  marginBottom: 14,
+                }}
+              >
+                Key dynamics to note
+              </h3>
+              <ul
+                style={{
+                  fontSize: 13,
+                  lineHeight: 1.9,
+                  color: "#9e9ec0",
+                  paddingLeft: 18,
+                }}
+              >
+                <li>
+                  <strong style={{ color: "#c8cdd8" }}>
+                    Time decay works against you
+                  </strong>{" "}
+                  — drag the days-to-expiry slider left to see how value evaporates
+                  as expiry approaches, even if the stock moves.
+                </li>
+                <li>
+                  <strong style={{ color: "#c8cdd8" }}>
+                    Volatility is your friend
+                  </strong>{" "}
+                  — if implied vol spikes (crisis escalation), the warrant gains
+                  value even without a stock move. Try pushing vol higher.
+                </li>
+                <li>
+                  <strong style={{ color: "#c8cdd8" }}>
+                    {calcDirection === "short"
+                      ? "You don't need to hit strike"
+                      : "You don't need to reach strike"}
+                  </strong>{" "}
+                  — a significant move with elevated vol can make warrants worth
+                  multiples of entry.
+                </li>
+                <li>
+                  <strong style={{ color: "#c8cdd8" }}>
+                    Liquidity is the real risk
+                  </strong>{" "}
+                  — the order book may be thin, so theoretical value and realizable
+                  value may diverge significantly.
+                </li>
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* ───────────── FOOTER ───────────── */}
         <div
