@@ -9,71 +9,48 @@ import {
   CartesianGrid,
 } from "recharts";
 
-// ── Yahoo Finance ticker mapping for Swedish stocks ──────────────────────────
+// ── Avanza stock search ─────────────────────────────────────────────────────
 
-const TICKER_MAP = {
-  "Swedbank A": "SWED-A.ST",
-  "Swedbank B": "SWED-B.ST",
-  "SEB A": "SEB-A.ST",
-  "SEB C": "SEB-C.ST",
-  "Handelsbanken A": "SHB-A.ST",
-  "Handelsbanken B": "SHB-B.ST",
-  "Volvo A": "VOLV-A.ST",
-  "Volvo B": "VOLV-B.ST",
-  "Ericsson A": "ERIC-A.ST",
-  "Ericsson B": "ERIC-B.ST",
-  "H&M B": "HM-B.ST",
-  "Sandvik": "SAND.ST",
-  "Atlas Copco A": "ATCO-A.ST",
-  "Atlas Copco B": "ATCO-B.ST",
-  "ABB Ltd": "ABB.ST",
-  "AstraZeneca": "AZN.ST",
-  "Telia Company": "TELIA.ST",
-  "SKF B": "SKF-B.ST",
-  "SSAB A": "SSAB-A.ST",
-  "SSAB B": "SSAB-B.ST",
-  "Boliden": "BOL.ST",
-  "Hexagon B": "HEXA-B.ST",
-  "Investor A": "INVE-A.ST",
-  "Investor B": "INVE-B.ST",
-  "Nordea": "NDA-SE.ST",
-  "Essity B": "ESSITY-B.ST",
-  "Alfa Laval": "ALFA.ST",
-  "Getinge B": "GETI-B.ST",
-  "Husqvarna B": "HUSQ-B.ST",
-  "Electrolux B": "ELUX-B.ST",
-  "Epiroc A": "EPI-A.ST",
-  "Epiroc B": "EPI-B.ST",
-  "NIBE Industrier B": "NIBE-B.ST",
-  "Tele2 B": "TEL2-B.ST",
-  "Kinnevik B": "KINV-B.ST",
-  "Sinch": "SINCH.ST",
-  "Evolution": "EVO.ST",
-  "OMXS30": "^OMX",
-};
+const searchCache = new Map();
 
-function resolveTicker(name) {
-  if (!name) return "";
-  if (TICKER_MAP[name]) return TICKER_MAP[name];
-  const lower = name.toLowerCase();
-  for (const [key, val] of Object.entries(TICKER_MAP)) {
-    if (key.toLowerCase() === lower) return val;
+async function searchStock(query) {
+  const lowerQuery = query.toLowerCase();
+  for (const [, entry] of searchCache) {
+    if (entry.title.toLowerCase().includes(lowerQuery)) return [entry];
   }
-  for (const [key, val] of Object.entries(TICKER_MAP)) {
-    if (lower.includes(key.toLowerCase())) return val;
+
+  const res = await fetch("/api/search/filtered-search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json;charset=UTF-8" },
+    body: JSON.stringify({
+      query,
+      searchFilter: { types: ["STOCK"] },
+      screenSize: "DESKTOP",
+      originPath: "/",
+      originPlatform: "PWA",
+      searchSessionId: "chart",
+      pagination: { from: 0, size: 5 },
+    }),
+  });
+  if (!res.ok) throw new Error(`Search failed: HTTP ${res.status}`);
+  const data = await res.json();
+  const stocks = (data.hits || []).filter((h) => h.type === "STOCK");
+  if (stocks.length > 0) {
+    const top = stocks[0];
+    searchCache.set(top.orderBookId, top);
   }
-  return "";
+  return stocks;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const INTERVALS = [
-  { label: "1W", range: "5d", interval: "15m" },
-  { label: "1M", range: "1mo", interval: "1d" },
-  { label: "3M", range: "3mo", interval: "1d" },
-  { label: "6M", range: "6mo", interval: "1d" },
-  { label: "1Y", range: "1y", interval: "1wk" },
-  { label: "5Y", range: "5y", interval: "1mo" },
+  { label: "1W", timePeriod: "one_week" },
+  { label: "1M", timePeriod: "one_month" },
+  { label: "3M", timePeriod: "three_months" },
+  { label: "6M", timePeriod: "six_months" },
+  { label: "1Y", timePeriod: "one_year" },
+  { label: "5Y", timePeriod: "five_years" },
 ];
 
 const CACHE_TTL = 5 * 60 * 1000;
@@ -83,8 +60,8 @@ const cache = new Map();
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function fetchChart(symbol, range, interval, retries = 3) {
-  const key = `${symbol}:${range}:${interval}`;
+async function fetchChart(stockId, timePeriod, retries = 3) {
+  const key = `${stockId}:${timePeriod}`;
   const cached = cache.get(key);
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.data;
 
@@ -93,31 +70,22 @@ async function fetchChart(symbol, range, interval, retries = 3) {
     if (attempt > 0) await delay(1000 * 2 ** attempt);
     try {
       const res = await fetch(
-        `/yahoo/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}`
+        `/api/price-chart/stock/${stockId}?timePeriod=${timePeriod}`
       );
-      if (res.status === 429) {
-        lastErr = new Error("Rate limited (429) — retrying...");
-        continue;
-      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      const result = json.chart?.result?.[0];
-      if (!result?.timestamp) throw new Error("No data returned");
+      const ohlc = json.ohlc;
+      if (!ohlc || ohlc.length === 0) throw new Error("No data returned");
 
-      const ts = result.timestamp;
-      const q = result.indicators?.quote?.[0] || {};
-      const data = [];
-      for (let i = 0; i < ts.length; i++) {
-        if (q.close?.[i] != null) {
-          data.push({
-            ts: ts[i],
-            close: q.close[i],
-            high: q.high?.[i],
-            low: q.low?.[i],
-            volume: q.volume?.[i],
-          });
-        }
-      }
+      const data = ohlc
+        .filter((d) => d.close != null)
+        .map((d) => ({
+          ts: d.timestamp,
+          close: d.close,
+          high: d.high,
+          low: d.low,
+          volume: d.totalVolumeTraded,
+        }));
       if (data.length === 0) throw new Error("No data points");
 
       cache.set(key, { data, time: Date.now() });
@@ -171,10 +139,11 @@ const statBox = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function HistoricalChart({ underlyingName, medianIV }) {
+export default function HistoricalChart({ underlyingName, underlyingId, medianIV }) {
   const [intervalIdx, setIntervalIdx] = useState(2);
-  const [ticker, setTicker] = useState("");
-  const [tickerInput, setTickerInput] = useState("");
+  const [stockId, setStockId] = useState(underlyingId || "");
+  const [stockLabel, setStockLabel] = useState(underlyingName || "");
+  const [searchInput, setSearchInput] = useState(underlyingName || "");
   const [chartData, setChartData] = useState([]);
   const [dailyCloses, setDailyCloses] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -182,40 +151,32 @@ export default function HistoricalChart({ underlyingName, medianIV }) {
   const [showVolInfo, setShowVolInfo] = useState(false);
 
   useEffect(() => {
-    const mapped = resolveTicker(underlyingName);
-    setTicker(mapped);
-    setTickerInput(mapped);
-  }, [underlyingName]);
+    if (underlyingId) {
+      setStockId(underlyingId);
+      setStockLabel(underlyingName || "");
+      setSearchInput(underlyingName || "");
+    }
+  }, [underlyingId, underlyingName]);
 
-  // Fetch chart data, then vol data sequentially to avoid rate limits
   useEffect(() => {
-    if (!ticker) return;
+    if (!stockId) return;
     let cancelled = false;
-    const { range, interval } = INTERVALS[intervalIdx];
-    const isDailyChart = interval === "1d";
+    const { timePeriod } = INTERVALS[intervalIdx];
 
     setLoading(true);
     setError(null);
 
     (async () => {
       try {
-        const data = await fetchChart(ticker, range, interval);
+        const data = await fetchChart(stockId, timePeriod);
         if (cancelled) return;
         setChartData(data);
 
-        // If the chart already uses daily data with enough history, reuse it for vol
-        if (isDailyChart && data.length > 90) {
-          setDailyCloses(data.map((p) => p.close));
-        } else {
-          // Otherwise fetch daily data separately (after a small delay)
-          await delay(300);
-          if (cancelled) return;
-          try {
-            const daily = await fetchChart(ticker, "1y", "1d");
-            if (!cancelled) setDailyCloses(daily.map((p) => p.close));
-          } catch {
-            // Vol data is secondary — don't fail the whole thing
-          }
+        try {
+          const daily = await fetchChart(stockId, "one_year");
+          if (!cancelled) setDailyCloses(daily.map((p) => p.close));
+        } catch {
+          // Vol data is secondary
         }
       } catch (e) {
         if (!cancelled) {
@@ -228,7 +189,7 @@ export default function HistoricalChart({ underlyingName, medianIV }) {
     })();
 
     return () => { cancelled = true; };
-  }, [ticker, intervalIdx]);
+  }, [stockId, intervalIdx]);
 
   const stats = useMemo(() => {
     if (!chartData.length) return null;
@@ -255,7 +216,7 @@ export default function HistoricalChart({ underlyingName, medianIV }) {
   const regime = rv.rv30 != null ? volRegime(rv.rv30) : null;
 
   const formatDate = (ts) => {
-    const d = new Date(ts * 1000);
+    const d = new Date(ts);
     if (intervalIdx === 0) {
       return (
         d.toLocaleDateString("en", { weekday: "short" }) +
@@ -281,9 +242,20 @@ export default function HistoricalChart({ underlyingName, medianIV }) {
     [chartData, intervalIdx]
   );
 
-  const handleTickerSubmit = () => {
-    const val = tickerInput.trim();
-    if (val && val !== ticker) setTicker(val);
+  const handleSearch = async () => {
+    const val = searchInput.trim();
+    if (!val) return;
+    try {
+      const results = await searchStock(val);
+      if (results.length > 0) {
+        setStockId(results[0].orderBookId);
+        setStockLabel(results[0].title);
+      } else {
+        setError(`No stocks found for "${val}"`);
+      }
+    } catch (e) {
+      setError(e.message);
+    }
   };
 
   const ivRvDiff = (rvVal) => {
@@ -323,18 +295,18 @@ export default function HistoricalChart({ underlyingName, medianIV }) {
           </h2>
           <p style={{ fontSize: 11, color: "#6b7394", marginTop: 4 }}>
             {underlyingName}
-            {ticker && (
-              <span style={{ color: "#4fc3f7", marginLeft: 6 }}>{ticker}</span>
+            {stockLabel && (
+              <span style={{ color: "#4fc3f7", marginLeft: 6 }}>{stockLabel}</span>
             )}
           </p>
         </div>
 
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <input
-            value={tickerInput}
-            onChange={(e) => setTickerInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleTickerSubmit()}
-            placeholder="Yahoo ticker (e.g. SWED-A.ST)"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            placeholder="Search stock (e.g. Swedbank A)"
             style={{
               background: "#0a0e17",
               border: "1px solid #1a2035",
@@ -348,7 +320,7 @@ export default function HistoricalChart({ underlyingName, medianIV }) {
             }}
           />
           <button
-            onClick={handleTickerSubmit}
+            onClick={handleSearch}
             style={{
               padding: "6px 12px",
               borderRadius: 6,
@@ -408,8 +380,8 @@ export default function HistoricalChart({ underlyingName, medianIV }) {
               marginBottom: 16,
             }}
           >
-            Failed to load data: {error}. Try entering a different Yahoo Finance
-            ticker symbol above.
+            Failed to load data: {error}. Try searching for a different stock
+            above.
           </div>
         )}
 
@@ -428,7 +400,7 @@ export default function HistoricalChart({ underlyingName, medianIV }) {
         )}
 
         {/* No ticker */}
-        {!ticker && !loading && (
+        {!stockId && !loading && (
           <div
             style={{
               textAlign: "center",
@@ -437,13 +409,7 @@ export default function HistoricalChart({ underlyingName, medianIV }) {
               fontSize: 13,
             }}
           >
-            Enter a Yahoo Finance ticker above to load historical data.
-            {underlyingName && (
-              <div style={{ marginTop: 8, fontSize: 11 }}>
-                Could not auto-map &ldquo;{underlyingName}&rdquo; &mdash; enter
-                the ticker manually (e.g. SWED-A.ST for Swedbank A)
-              </div>
-            )}
+            Search for a stock above to load historical data.
           </div>
         )}
 

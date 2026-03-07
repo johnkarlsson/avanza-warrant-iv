@@ -1336,6 +1336,7 @@ export default function WarrantCalculator() {
         {/* ───────────── HISTORICAL CHART ───────────── */}
         <HistoricalChart
           underlyingName={underlyingSearch}
+          underlyingId={underlyingId}
           medianIV={medianIV}
         />
 
