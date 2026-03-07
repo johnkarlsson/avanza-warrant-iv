@@ -4,6 +4,8 @@ A React web app for searching, analyzing, and pricing warrants listed on Avanza.
 
 Uses Avanza's internal API — no authentication required.
 
+![Screenshot](screenshot.png)
+
 ## Features
 
 ### Warrant Search
