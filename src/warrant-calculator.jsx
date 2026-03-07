@@ -193,6 +193,7 @@ export default function WarrantCalculator() {
   const simIdRef = useRef(0);
   const lastSimTargetRef = useRef(null);
   const [activeScenario, setActiveScenario] = useState(null);
+  const [needsSelection, setNeedsSelection] = useState(false);
 
   // ── Load cache on mount ──
   useEffect(() => {
@@ -542,6 +543,7 @@ export default function WarrantCalculator() {
       if (!d) return;
 
       setSelectedWarrantId(w.orderbookId);
+      setNeedsSelection(false);
       setSpotPrice(d.underlying?.quote?.last || 0);
       setStrike(d.keyIndicators?.strikePrice || 0);
       setParity(d.keyIndicators?.parity || 1);
@@ -944,6 +946,7 @@ export default function WarrantCalculator() {
                     setSimTimeoutPaths(null);
                     setSimTimeoutTarget(null);
                     setActiveScenario(null);
+                    setNeedsSelection(true);
                   }}
                   placeholder="Type to search (e.g. Swedbank A)..."
                   style={inputStyle}
@@ -965,7 +968,12 @@ export default function WarrantCalculator() {
                   ].map((opt) => (
                     <button
                       key={opt.value}
-                      onClick={() => setDirection(opt.value)}
+                      onClick={() => {
+                        if (opt.value !== direction) {
+                          setDirection(opt.value);
+                          setNeedsSelection(true);
+                        }
+                      }}
                       style={{
                         flex: 1,
                         padding: "10px 6px",
@@ -996,7 +1004,10 @@ export default function WarrantCalculator() {
                 <label style={labelStyle}>Type</label>
                 <select
                   value={subType}
-                  onChange={(e) => setSubType(e.target.value)}
+                  onChange={(e) => {
+                    setSubType(e.target.value);
+                    setNeedsSelection(true);
+                  }}
                   style={inputStyle}
                 >
                   <option value="">All types</option>
@@ -1451,7 +1462,30 @@ export default function WarrantCalculator() {
 
         </div>
 
-        <div className="panel">
+        <div className="panel" style={{ position: "relative" }}>
+        {needsSelection && (
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(8, 11, 20, 0.85)",
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 10,
+          }}>
+            <span style={{
+              fontSize: 28,
+              fontWeight: 700,
+              color: "#4a5078",
+              fontFamily: "'JetBrains Mono', monospace",
+              textAlign: "center",
+              padding: 40,
+            }}>
+              Select a search result
+            </span>
+          </div>
+        )}
         {/* ───────────── CALCULATOR HEADER ───────────── */}
         <div ref={detailsRef} style={{ marginBottom: 32, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
