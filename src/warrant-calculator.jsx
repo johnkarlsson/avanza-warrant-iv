@@ -99,6 +99,7 @@ const parseWarrantExpiry = (name) => {
 };
 
 const RESIM_WHILE_DRAGGING = true;
+const DEFAULT_DAYS_FROM_NOW_ONE_THIRD = false;
 
 // ── Shared styles ───────────────────────────────────────────────────────────
 
@@ -564,7 +565,7 @@ export default function WarrantCalculator() {
         const today = new Date();
         const days = Math.max(Math.round((expiry - today) / (24 * 60 * 60 * 1000)), 1);
         setTotalDaysToExpiry(days);
-        setDaysToExpiry(Math.round(days * 2 / 3));
+        setDaysToExpiry(DEFAULT_DAYS_FROM_NOW_ONE_THIRD ? Math.round(days * 2 / 3) : days);
       }
 
       // Set IV from computed value for this warrant
@@ -694,7 +695,13 @@ export default function WarrantCalculator() {
     if (scenarioChange != null) lastSimTargetRef.current = scenarioChange;
 
     const calendarDays = totalDaysToExpiry - daysToExpiry;
-    if (calendarDays <= 0) return;
+    if (calendarDays <= 0) {
+      setSimulationData(null);
+      setSimTimeoutPaths(null);
+      setSimTimeoutTarget(null);
+      setSimulating(false);
+      return;
+    }
 
     const tradingDays = Math.round(calendarDays * 5 / 7);
     if (tradingDays <= 0) return;
@@ -798,9 +805,12 @@ export default function WarrantCalculator() {
     simulateForScenario(target);
   }, [simulateForScenario, spotPrice, simulationData]);
 
+  const resimulateRef = useRef(resimulate);
+  resimulateRef.current = resimulate;
+
   useEffect(() => {
-    if (resimTrigger > 0) resimulate();
-  }, [resimTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (resimTrigger > 0) resimulateRef.current();
+  }, [resimTrigger]);
 
   // ── Render ──
   return (
@@ -1810,7 +1820,12 @@ export default function WarrantCalculator() {
               max={totalDaysToExpiry - 1}
               step={1}
               value={totalDaysToExpiry - daysToExpiry}
-              onChange={(e) => { setDaysToExpiry(totalDaysToExpiry - Number(e.target.value)); if (RESIM_WHILE_DRAGGING) setResimTrigger((n) => n + 1); }}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setDaysToExpiry(totalDaysToExpiry - v);
+                if (v === 0) { ++simIdRef.current; setSimulationData(null); setSimTimeoutPaths(null); setSimTimeoutTarget(null); setSimulating(false); }
+                else if (RESIM_WHILE_DRAGGING) setResimTrigger((n) => n + 1);
+              }}
               onMouseUp={RESIM_WHILE_DRAGGING ? undefined : resimulate}
               onTouchEnd={RESIM_WHILE_DRAGGING ? undefined : resimulate}
             />
