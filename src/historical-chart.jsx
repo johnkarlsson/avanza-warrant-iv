@@ -186,6 +186,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showVolInfo, setShowVolInfo] = useState(false);
+  const [showRVExplainer, setShowRVExplainer] = useState(false);
   const [showSimOverlay, setShowSimOverlay] = useState(false);
   const simHorizonRef = useRef(null); // last known sim time range
   const simOverlayTimer = useRef(null);
@@ -859,6 +860,24 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                 >
                   Realized Volatility
                 </h3>
+                <button
+                  onClick={() => setShowRVExplainer(true)}
+                  style={{
+                    background: "#1a1040",
+                    border: "1px solid #2a1f5e",
+                    borderRadius: 4,
+                    color: "#b39ddb",
+                    fontSize: 10,
+                    padding: "3px 8px",
+                    cursor: "pointer",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    marginLeft: 8,
+                    fontWeight: 700,
+                  }}
+                >
+                  ?
+                </button>
+                <div style={{ flex: 1 }} />
                 {regime && (
                   <div
                     style={{ display: "flex", alignItems: "center", gap: 8 }}
@@ -1108,6 +1127,89 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
           </>
         )}
       </div>
+
+      {showRVExplainer && (
+        <div
+          onClick={() => setShowRVExplainer(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "linear-gradient(135deg, #1a1040 0%, #0d1525 100%)",
+              borderRadius: 12,
+              padding: "28px 32px",
+              border: "1px solid #2a1f5e",
+              maxWidth: 560,
+              width: "90%",
+              position: "relative",
+              maxHeight: "80vh",
+              overflowY: "auto",
+            }}
+          >
+            <button
+              onClick={() => setShowRVExplainer(false)}
+              style={{
+                position: "absolute",
+                top: 12,
+                right: 16,
+                background: "none",
+                border: "none",
+                color: "#6b7394",
+                fontSize: 20,
+                cursor: "pointer",
+                lineHeight: 1,
+              }}
+            >
+              &times;
+            </button>
+            <h3
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 16,
+                fontWeight: 600,
+                color: "#b39ddb",
+                marginBottom: 14,
+              }}
+            >
+              How realized volatility is calculated
+            </h3>
+            <div style={{ fontSize: 13, lineHeight: 1.9, color: "#9e9ec0" }}>
+              <p style={{ marginBottom: 12 }}>
+                <strong style={{ color: "#c8cdd8" }}>Calculation</strong><br />
+                Close-to-close log returns r<sub>i</sub> = ln(C<sub>i</sub> / C<sub>i-1</sub>) over
+                an N-day window. Sample standard deviation of those returns, annualized
+                by &times; &radic;252. Shown for N = 30, 60, 90 trading days.
+              </p>
+              <p style={{ marginBottom: 12 }}>
+                <strong style={{ color: "#c8cdd8" }}>Regimes</strong><br />
+                <span style={{ color: "#4caf50" }}>&lt;20%</span> Low |{" "}
+                <span style={{ color: "#4fc3f7" }}>20-35%</span> Normal |{" "}
+                <span style={{ color: "#ff9800" }}>35-50%</span> Elevated |{" "}
+                <span style={{ color: "#e53935" }}>&gt;50%</span> Crisis
+              </p>
+              <p style={{ marginBottom: 12 }}>
+                <strong style={{ color: "#c8cdd8" }}>IV vs RV</strong><br />
+                IV &gt; RV suggests warrants are priced above recent realized moves (vol premium).
+                IV &lt; RV suggests pricing hasn&rsquo;t caught up to actual turbulence.
+              </p>
+              <p style={{ marginBottom: 0 }}>
+                <strong style={{ color: "#c8cdd8" }}>5Y distribution</strong><br />
+                Rolling 90-day RV over 5 years, split by bull/bear periods (positive/negative return over each window).
+                IV percentile rank shows where current implied vol sits within that historical distribution.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

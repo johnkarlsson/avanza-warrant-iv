@@ -189,6 +189,8 @@ export default function WarrantCalculator() {
   const [simulating, setSimulating] = useState(false);
   const [resimTrigger, setResimTrigger] = useState(0);
   const [showDynamicsModal, setShowDynamicsModal] = useState(false);
+  const [showBSModal, setShowBSModal] = useState(false);
+  const [showIVExplainer, setShowIVExplainer] = useState(false);
   const [showIVModal, setShowIVModal] = useState(false);
   const simIdRef = useRef(0);
   const lastSimTargetRef = useRef(null);
@@ -1270,7 +1272,26 @@ export default function WarrantCalculator() {
                       "(%)",
                       "Parity",
                       "Price",
-                      "IV",
+                      <span key="iv-header" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        IV
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setShowIVExplainer(true); }}
+                          style={{
+                            background: "#1a1040",
+                            border: "1px solid #2a1f5e",
+                            borderRadius: 4,
+                            color: "#b39ddb",
+                            fontSize: 9,
+                            padding: "1px 5px",
+                            cursor: "pointer",
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontWeight: 700,
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          ?
+                        </button>
+                      </span>,
                       "Activity",
                     ].map((h, i) => (
                       <th
@@ -1638,15 +1659,18 @@ export default function WarrantCalculator() {
               label: "BS fair value",
               value: `${(currentOptionBS / parity).toFixed(2)} SEK`,
               color: "#aaa",
+              onClick: () => setShowBSModal(true),
             },
           ].map((item, i) => (
             <div
               key={i}
+              onClick={item.onClick}
               style={{
                 background: "#111728",
                 borderRadius: 8,
                 padding: "14px 16px",
                 border: "1px solid #1a2035",
+                cursor: item.onClick ? "pointer" : undefined,
               }}
             >
               <div
@@ -1696,45 +1720,35 @@ export default function WarrantCalculator() {
                 marginBottom: 8,
               }}
             >
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "#6b7394",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                }}
-              >
-                Implied vol
-              </span>
-              {rvDist && (
-                <span style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                  {[
-                    { label: "▼", value: rvDist.red?.median, color: "#ef5350" },
-                    { label: "all", value: rvDist.median, color: "#6b7394" },
-                    { label: "▲", value: rvDist.green?.median, color: "#4caf50" },
-                  ].map(({ label, value, color }) =>
-                    value != null ? (
-                      <span
-                        key={label}
-                        onClick={() => { setVol(Math.round(value)); setResimTrigger((n) => n + 1); }}
-                        style={{
-                          fontSize: 10,
-                          color,
-                          cursor: "pointer",
-                          opacity: 0.75,
-                          userSelect: "none",
-                          background: "rgba(255,255,255,0.04)",
-                          borderRadius: 3,
-                          padding: "1px 4px",
-                        }}
-                        title={`Set vol to ${label} RV median: ${value.toFixed(1)}%`}
-                      >
-                        {value.toFixed(0)}%
-                      </span>
-                    ) : null
-                  )}
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "#6b7394",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                  }}
+                >
+                  Implied vol
                 </span>
-              )}
+                <button
+                  onClick={() => setShowIVExplainer(true)}
+                  style={{
+                    background: "#1a1040",
+                    border: "1px solid #2a1f5e",
+                    borderRadius: 4,
+                    color: "#b39ddb",
+                    fontSize: 10,
+                    padding: "1px 6px",
+                    cursor: "pointer",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontWeight: 700,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  ?
+                </button>
+              </span>
               <span
                 style={{ fontSize: 13, color: "#4fc3f7", fontWeight: 600 }}
               >
@@ -2545,6 +2559,174 @@ export default function WarrantCalculator() {
                   value may diverge significantly.
                 </li>
               </ul>
+            </div>
+          </div>
+        )}
+
+        {showIVExplainer && (
+          <div
+            onClick={() => setShowIVExplainer(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "linear-gradient(135deg, #1a1040 0%, #0d1525 100%)",
+                borderRadius: 12,
+                padding: "28px 32px",
+                border: "1px solid #2a1f5e",
+                maxWidth: 520,
+                width: "90%",
+                position: "relative",
+              }}
+            >
+              <button
+                onClick={() => setShowIVExplainer(false)}
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 16,
+                  background: "none",
+                  border: "none",
+                  color: "#6b7394",
+                  fontSize: 20,
+                  cursor: "pointer",
+                  lineHeight: 1,
+                }}
+              >
+                &times;
+              </button>
+              <h3
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "#b39ddb",
+                  marginBottom: 14,
+                }}
+              >
+                Implied volatility (IV)
+              </h3>
+              <div style={{ fontSize: 13, lineHeight: 1.9, color: "#9e9ec0" }}>
+                <p style={{ marginBottom: 12 }}>
+                  Implied volatility is the market&rsquo;s consensus forecast of how much the stock will move.
+                  It&rsquo;s found by working backwards: given the price someone is willing to pay for an option,
+                  what volatility would Black-Scholes need to produce that price?
+                </p>
+                <p style={{ marginBottom: 12 }}>
+                  There&rsquo;s no direct formula for this &mdash; it&rsquo;s solved numerically, typically
+                  using <strong style={{ color: "#c8cdd8" }}>Newton-Raphson iteration</strong>: start with a guess,
+                  compute the model price, measure the error, adjust using the option&rsquo;s sensitivity to vol
+                  (called <strong style={{ color: "#c8cdd8" }}>vega</strong>), and repeat until the error is negligible.
+                  This usually converges in 3&ndash;5 steps.
+                </p>
+                <p style={{ marginBottom: 12 }}>
+                  IV is quoted as an <strong style={{ color: "#c8cdd8" }}>annualized percentage</strong>. To convert
+                  to shorter periods, scale by the square root of time:
+                </p>
+                <div style={{
+                  background: "#0a0e17",
+                  border: "1px solid #1a2035",
+                  borderRadius: 6,
+                  padding: "10px 16px",
+                  marginBottom: 12,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 12,
+                  lineHeight: 2,
+                }}>
+                  <div><strong style={{ color: "#c8cdd8" }}>Monthly</strong> (1&sigma;): stock &times; IV &times; &radic;(1/12)</div>
+                  <div><strong style={{ color: "#c8cdd8" }}>Weekly</strong> (1&sigma;): stock &times; IV &times; &radic;(1/52)</div>
+                  <div><strong style={{ color: "#c8cdd8" }}>Daily</strong> (1&sigma;): stock &times; IV &times; &radic;(1/252)</div>
+                </div>
+                <p style={{ marginBottom: 0 }}>
+                  A <strong style={{ color: "#c8cdd8" }}>&ldquo;1&sigma; move&rdquo;</strong> means roughly 68% of the time,
+                  the actual move will be smaller than this. About 95% of the time it stays within 2&times; this range.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showBSModal && (
+          <div
+            onClick={() => setShowBSModal(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "linear-gradient(135deg, #1a1040 0%, #0d1525 100%)",
+                borderRadius: 12,
+                padding: "28px 32px",
+                border: "1px solid #2a1f5e",
+                maxWidth: 520,
+                width: "90%",
+                position: "relative",
+              }}
+            >
+              <button
+                onClick={() => setShowBSModal(false)}
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 16,
+                  background: "none",
+                  border: "none",
+                  color: "#6b7394",
+                  fontSize: 20,
+                  cursor: "pointer",
+                  lineHeight: 1,
+                }}
+              >
+                &times;
+              </button>
+              <h3
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "#b39ddb",
+                  marginBottom: 14,
+                }}
+              >
+                Black-Scholes pricing
+              </h3>
+              <div style={{ fontSize: 13, lineHeight: 1.9, color: "#9e9ec0" }}>
+                <p style={{ marginBottom: 12 }}>
+                  An option&rsquo;s price comes from two things. <strong style={{ color: "#c8cdd8" }}>Intrinsic value</strong> is
+                  the simple part: how much the option would be worth if you exercised it right now. For a put,
+                  that&rsquo;s the strike price minus the stock price (or zero if the stock is above the
+                  strike). <strong style={{ color: "#c8cdd8" }}>Time value</strong> is everything else &mdash; it captures the
+                  probability that the stock could move favorably before expiry.
+                </p>
+                <p style={{ marginBottom: 12 }}>
+                  <strong style={{ color: "#c8cdd8" }}>Black-Scholes</strong> calculates that probability by assuming stock prices follow a random walk, where
+                  returns form a bell curve. It integrates over all possible future stock prices, weights each by
+                  how likely it is, and discounts back to today. The result is a fair price for the option given
+                  five inputs: the stock price, the strike, time to expiry, the risk-free rate, and
+                  volatility &mdash; how much the stock is expected to bounce around.
+                </p>
+                <p style={{ marginBottom: 0 }}>
+                  Higher volatility means fatter tails on the bell curve, which means more chance of extreme
+                  moves, which means a higher option price. That&rsquo;s why vol is the single most important input.
+                </p>
+              </div>
             </div>
           </div>
         )}
