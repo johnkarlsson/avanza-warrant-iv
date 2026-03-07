@@ -1766,7 +1766,7 @@ export default function WarrantCalculator() {
                   letterSpacing: 1,
                 }}
               >
-                Days to expiry
+                Remaining days to expiry
               </span>
               <span
                 style={{ fontSize: 13, color: "#8a8a8a", fontWeight: 600 }}
