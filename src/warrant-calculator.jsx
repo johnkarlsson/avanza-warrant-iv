@@ -1056,7 +1056,11 @@ export default function WarrantCalculator() {
                         {r.strike != null && r.spotPrice != null ? (() => {
                           const pct = Math.round(((r.strike - r.spotPrice) / r.spotPrice) * 100);
                           return (
-                            <span style={{ color: pct >= 0 ? "#4caf50" : "#6b7394" }}>
+                            <span style={{ color:
+                              r.direction === "long" && pct >= 0 ? "#4caf50"
+                              : r.direction === "short" && pct < 0 ? "#e53935"
+                              : "#6b7394"
+                            }}>
                               {pct >= 0 ? "+" : ""}{pct}%
                             </span>
                           );
