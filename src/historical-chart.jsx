@@ -60,8 +60,8 @@ const cache = new Map();
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function fetchChart(stockId, timePeriod, retries = 3) {
-  const key = `${stockId}:${timePeriod}`;
+async function fetchChart(stockId, timePeriod, retries = 3, resolution = null) {
+  const key = `${stockId}:${timePeriod}:${resolution || ""}`;
   const cached = cache.get(key);
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.data;
 
@@ -69,9 +69,9 @@ async function fetchChart(stockId, timePeriod, retries = 3) {
   for (let attempt = 0; attempt < retries; attempt++) {
     if (attempt > 0) await delay(1000 * 2 ** attempt);
     try {
-      const res = await fetch(
-        `/api/price-chart/stock/${stockId}?timePeriod=${timePeriod}`
-      );
+      let url = `/api/price-chart/stock/${stockId}?timePeriod=${timePeriod}`;
+      if (resolution) url += `&resolution=${resolution}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       const ohlc = json.ohlc;
@@ -112,6 +112,38 @@ function calcRealizedVol(closes, window) {
   return Math.sqrt(variance * 252) * 100;
 }
 
+function calcRollingRV(closes, window) {
+  const results = [];
+  for (let end = window; end < closes.length; end++) {
+    const slice = closes.slice(end - window, end + 1);
+    const returns = [];
+    for (let i = 1; i < slice.length; i++) {
+      returns.push(Math.log(slice[i] / slice[i - 1]));
+    }
+    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const variance =
+      returns.reduce((a, r) => a + (r - mean) ** 2, 0) / (returns.length - 1);
+    results.push(Math.sqrt(variance * 252) * 100);
+  }
+  return results;
+}
+
+function percentile(sorted, p) {
+  const idx = (p / 100) * (sorted.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+function percentileRank(sorted, value) {
+  let count = 0;
+  for (const v of sorted) {
+    if (v < value) count++;
+  }
+  return (count / sorted.length) * 100;
+}
+
 function volRegime(vol) {
   if (vol < 20) return { label: "Low vol regime", color: "#4caf50" };
   if (vol < 35) return { label: "Normal", color: "#4fc3f7" };
@@ -146,6 +178,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
   const [searchInput, setSearchInput] = useState(underlyingName || "");
   const [chartData, setChartData] = useState([]);
   const [dailyCloses, setDailyCloses] = useState([]);
+  const [fiveYearCloses, setFiveYearCloses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showVolInfo, setShowVolInfo] = useState(false);
@@ -173,8 +206,14 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
         setChartData(data);
 
         try {
-          const daily = await fetchChart(stockId, "one_year");
-          if (!cancelled) setDailyCloses(daily.map((p) => p.close));
+          const [daily, fiveYear] = await Promise.all([
+            fetchChart(stockId, "one_year"),
+            fetchChart(stockId, "five_years", 3, "day"),
+          ]);
+          if (!cancelled) {
+            setDailyCloses(daily.map((p) => p.close));
+            setFiveYearCloses(fiveYear.map((p) => p.close));
+          }
         } catch {
           // Vol data is secondary
         }
@@ -212,6 +251,22 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
     }),
     [dailyCloses]
   );
+
+  const rvDist = useMemo(() => {
+    if (fiveYearCloses.length < 91) return null;
+    const rolling = calcRollingRV(fiveYearCloses, 90);
+    const sorted = [...rolling].sort((a, b) => a - b);
+    return {
+      current: rolling[rolling.length - 1],
+      min: sorted[0],
+      p25: percentile(sorted, 25),
+      median: percentile(sorted, 50),
+      p75: percentile(sorted, 75),
+      max: sorted[sorted.length - 1],
+      ivRank: medianIV != null ? percentileRank(sorted, medianIV) : null,
+      count: sorted.length,
+    };
+  }, [fiveYearCloses, medianIV]);
 
   const regime = rv.rv30 != null ? volRegime(rv.rv30) : null;
 
@@ -663,9 +718,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                 style={{
                   display: "grid",
                   gridTemplateColumns:
-                    medianIV != null
-                      ? "1fr 1fr 1fr 1fr"
-                      : "1fr 1fr 1fr",
+                    `repeat(${3 + (medianIV != null ? 1 : 0) + (rvDist ? 1 : 0)}, 1fr)`,
                   gap: 10,
                 }}
               >
@@ -717,6 +770,34 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                   );
                 })}
 
+                {rvDist && (
+                  <div style={statBox}>
+                    <div
+                      style={{
+                        fontSize: 9,
+                        color: "#6b7394",
+                        textTransform: "uppercase",
+                        letterSpacing: 1,
+                        marginBottom: 2,
+                      }}
+                    >
+                      90-Day Rolling RV
+                    </div>
+                    {[
+                      { value: rvDist.p25, label: "p25" },
+                      { value: rvDist.median, label: "med" },
+                      { value: rvDist.p75, label: "p75" },
+                    ].map((item, i) => (
+                      <div key={item.label} style={{ fontSize: 10, marginTop: i === 0 ? 8 : 3 }}>
+                        <span style={{ color: volRegime(item.value).color, fontWeight: 600 }}>
+                          {item.value.toFixed(1)}%
+                        </span>{" "}
+                        <span style={{ color: "#6b7394" }}>{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {medianIV != null && (
                   <div style={statBox}>
                     <div
@@ -750,6 +831,22 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                       >
                         {medianIV > rv.rv30 ? "+" : ""}
                         {(medianIV - rv.rv30).toFixed(1)}pp vs 30d RV
+                      </div>
+                    )}
+                    {rvDist?.ivRank != null && (
+                      <div
+                        style={{
+                          fontSize: 9,
+                          marginTop: 2,
+                          color:
+                            rvDist.ivRank > 75
+                              ? "#ff9800"
+                              : rvDist.ivRank < 25
+                                ? "#4caf50"
+                                : "#4fc3f7",
+                        }}
+                      >
+                        {rvDist.ivRank.toFixed(0)}th pctl vs 5Y RV
                       </div>
                     )}
                   </div>
