@@ -1148,7 +1148,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
               borderRadius: 12,
               padding: "28px 32px",
               border: "1px solid #2a1f5e",
-              maxWidth: 560,
+              maxWidth: 900,
               width: "90%",
               position: "relative",
               maxHeight: "80vh",
@@ -1171,41 +1171,77 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
             >
               &times;
             </button>
-            <h3
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: 16,
-                fontWeight: 600,
-                color: "#b39ddb",
-                marginBottom: 14,
-              }}
-            >
-              How realized volatility is calculated
-            </h3>
-            <div style={{ fontSize: 13, lineHeight: 1.9, color: "#9e9ec0" }}>
-              <p style={{ marginBottom: 12 }}>
-                <strong style={{ color: "#c8cdd8" }}>Calculation</strong><br />
-                Close-to-close log returns r<sub>i</sub> = ln(C<sub>i</sub> / C<sub>i-1</sub>) over
-                an N-day window. Sample standard deviation of those returns, annualized
-                by &times; &radic;252. Shown for N = 30, 60, 90 trading days.
-              </p>
-              <p style={{ marginBottom: 12 }}>
-                <strong style={{ color: "#c8cdd8" }}>Regimes</strong><br />
-                <span style={{ color: "#4caf50" }}>&lt;20%</span> Low |{" "}
-                <span style={{ color: "#4fc3f7" }}>20-35%</span> Normal |{" "}
-                <span style={{ color: "#ff9800" }}>35-50%</span> Elevated |{" "}
-                <span style={{ color: "#e53935" }}>&gt;50%</span> Crisis
-              </p>
-              <p style={{ marginBottom: 12 }}>
-                <strong style={{ color: "#c8cdd8" }}>IV vs RV</strong><br />
-                IV &gt; RV suggests warrants are priced above recent realized moves (vol premium).
-                IV &lt; RV suggests pricing hasn&rsquo;t caught up to actual turbulence.
-              </p>
-              <p style={{ marginBottom: 0 }}>
-                <strong style={{ color: "#c8cdd8" }}>5Y distribution</strong><br />
-                Rolling 90-day RV over 5 years, split by bull/bear periods (positive/negative return over each window).
-                IV percentile rank shows where current implied vol sits within that historical distribution.
-              </p>
+            <div style={{ display: "flex", gap: 0 }}>
+              <div style={{ flex: 1 }}>
+                <h3
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: "#b39ddb",
+                    marginBottom: 14,
+                  }}
+                >
+                  How realized volatility is calculated
+                </h3>
+                <div style={{ fontSize: 13, lineHeight: 1.9, color: "#9e9ec0" }}>
+                  <p style={{ marginBottom: 12 }}>
+                    <strong style={{ color: "#c8cdd8" }}>Calculation</strong><br />
+                    Close-to-close log returns r<sub>i</sub> = ln(C<sub>i</sub> / C<sub>i-1</sub>) over
+                    an N-day window. Sample standard deviation of those returns, annualized
+                    by &times; &radic;252. Shown for N = 30, 60, 90 trading days.
+                  </p>
+                  <p style={{ marginBottom: 12 }}>
+                    <strong style={{ color: "#c8cdd8" }}>Regimes</strong><br />
+                    <span style={{ color: "#4caf50" }}>&lt;20%</span> Low |{" "}
+                    <span style={{ color: "#4fc3f7" }}>20-35%</span> Normal |{" "}
+                    <span style={{ color: "#ff9800" }}>35-50%</span> Elevated |{" "}
+                    <span style={{ color: "#e53935" }}>&gt;50%</span> Crisis
+                  </p>
+                  <p style={{ marginBottom: 12 }}>
+                    <strong style={{ color: "#c8cdd8" }}>IV vs RV</strong><br />
+                    IV &gt; RV suggests warrants are priced above recent realized moves (vol premium).
+                    IV &lt; RV suggests pricing hasn&rsquo;t caught up to actual turbulence.
+                  </p>
+                  <p style={{ marginBottom: 0 }}>
+                    <strong style={{ color: "#c8cdd8" }}>5Y distribution</strong><br />
+                    Rolling 90-day RV over 5 years, split by bull/bear periods (positive/negative return over each window).
+                    IV percentile rank shows where current implied vol sits within that historical distribution.
+                  </p>
+                </div>
+              </div>
+              <div style={{ width: 1, background: "#2a3050", margin: "12px 28px", flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <h3
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: "#b39ddb",
+                    marginBottom: 14,
+                  }}
+                >
+                  What it means
+                </h3>
+                <div style={{ fontSize: 13, lineHeight: 1.9, color: "#9e9ec0" }}>
+                  <p style={{ marginBottom: 12 }}>
+                    Realized volatility measures how much the stock has actually moved over a past window.
+                    It&rsquo;s calculated from daily closing prices: take the log return each day, compute the
+                    standard deviation, and annualize by multiplying by &radic;252 (trading days per year).
+                  </p>
+                  <p style={{ marginBottom: 12 }}>
+                    <strong style={{ color: "#c8cdd8" }}>Different windows tell different stories.</strong> A 30-day
+                    window reacts quickly to recent turbulence. A 90-day window smooths out noise. Neither predicts
+                    the future &mdash; they describe the past.
+                  </p>
+                  <p style={{ marginBottom: 0 }}>
+                    <strong style={{ color: "#c8cdd8" }}>The window matters most during regime shifts.</strong> If
+                    markets have been calm for months and a crisis begins, a 90-day RV will understate current
+                    conditions because the calm period drags it down. A 30-day window catches up faster but can
+                    overshoot in the other direction.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
