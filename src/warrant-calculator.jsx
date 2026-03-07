@@ -1075,7 +1075,7 @@ export default function WarrantCalculator() {
               )}
             </div>
 
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: 420 }}>
               <table
                 style={{
                   width: "100%",
@@ -1108,6 +1108,10 @@ export default function WarrantCalculator() {
                           letterSpacing: 1,
                           fontWeight: 500,
                           whiteSpace: "nowrap",
+                          position: "sticky",
+                          top: 0,
+                          background: "#0d1117",
+                          zIndex: 1,
                         }}
                       >
                         {h}
