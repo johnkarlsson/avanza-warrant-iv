@@ -330,7 +330,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
   };
 
   const formattedData = useMemo(
-    () => chartData.map((d) => ({ ...d, dateLabel: formatDate(d.ts) })),
+    () => chartData.map((d) => ({ ...d, closeFill: d.close, dateLabel: formatDate(d.ts) })),
     [chartData, intervalIdx]
   );
 
