@@ -1038,7 +1038,9 @@ export default function WarrantCalculator() {
                         style={{
                           padding: "12px 14px",
                           textAlign: "right",
-                          color: "#fff",
+                          color: r.strike != null && r.spotPrice != null && (
+                            r.direction === "short" ? r.strike > r.spotPrice : r.strike < r.spotPrice
+                          ) ? "#4caf50" : "#fff",
                           fontWeight: 500,
                         }}
                       >
