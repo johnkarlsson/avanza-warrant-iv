@@ -1301,21 +1301,16 @@ export default function WarrantCalculator() {
                 marginBottom: 8,
               }}
             >
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "#6b7394",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                }}
-              >
-                Days from now
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span
-                  style={{ fontSize: 13, color: "#4fc3f7", fontWeight: 600 }}
+                  style={{
+                    fontSize: 11,
+                    color: "#6b7394",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                  }}
                 >
-                  {totalDaysToExpiry - daysToExpiry}d
+                  Days from now
                 </span>
                 <span
                   onClick={() => setDaysToExpiry(Math.max(1, daysToExpiry - 30))}
@@ -1329,6 +1324,11 @@ export default function WarrantCalculator() {
                 >
                   +30
                 </span>
+              </span>
+              <span
+                style={{ fontSize: 13, color: "#4fc3f7", fontWeight: 600 }}
+              >
+                {totalDaysToExpiry - daysToExpiry}d
               </span>
             </div>
             <input
