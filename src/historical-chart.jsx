@@ -343,6 +343,8 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
         ts: d.ts,
         dateLabel: formatDate(d.ts),
       }));
+    } else if (!simulationData && !simTimeoutPaths) {
+      simHorizonRef.current = null;
     }
 
     const horizon = simHorizonRef.current;

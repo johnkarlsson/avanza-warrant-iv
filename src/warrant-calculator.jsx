@@ -940,6 +940,10 @@ export default function WarrantCalculator() {
                         e.target.value.toLowerCase()
                     );
                     setUnderlyingId(match ? match.value : "");
+                    setSimulationData(null);
+                    setSimTimeoutPaths(null);
+                    setSimTimeoutTarget(null);
+                    setActiveScenario(null);
                   }}
                   placeholder="Type to search (e.g. Swedbank A)..."
                   style={inputStyle}
@@ -1865,9 +1869,7 @@ export default function WarrantCalculator() {
                         i < scenarioResults.length - 1
                           ? "1px solid #131a2e"
                           : "none",
-                      background: r.profitable
-                        ? "rgba(76, 175, 80, 0.04)"
-                        : "transparent",
+                      background: "transparent",
                     }}
                   >
                     {(() => {
