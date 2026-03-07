@@ -737,6 +737,11 @@ export default function WarrantCalculator() {
         @keyframes sim-spin { to { transform: rotate(360deg); } }
         tr.result-row { cursor: pointer; transition: background 0.15s; }
         tr.result-row:hover { background: rgba(79,195,247,0.06) !important; }
+        * { scrollbar-width: thin; scrollbar-color: #1a2035 transparent; }
+        *::-webkit-scrollbar { width: 6px; height: 6px; }
+        *::-webkit-scrollbar-track { background: transparent; }
+        *::-webkit-scrollbar-thumb { background: #1a2035; border-radius: 3px; }
+        *::-webkit-scrollbar-thumb:hover { background: #2a3050; }
       `}</style>
 
       <div style={{ maxWidth: 1000, margin: "0 auto" }}>
