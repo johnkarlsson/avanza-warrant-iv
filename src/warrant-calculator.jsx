@@ -184,6 +184,7 @@ export default function WarrantCalculator() {
   const [simulating, setSimulating] = useState(false);
   const [resimTrigger, setResimTrigger] = useState(0);
   const [showDynamicsModal, setShowDynamicsModal] = useState(false);
+  const [showIVModal, setShowIVModal] = useState(false);
   const simIdRef = useRef(0);
   const lastSimTargetRef = useRef(null);
 
@@ -1357,28 +1358,47 @@ export default function WarrantCalculator() {
                 : "Search and click a warrant to populate the calculator"}
             </p>
           </div>
-          <button
-            onClick={() => setShowDynamicsModal(true)}
-            style={{
-              flexShrink: 0,
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              border: "1px solid #2a1f5e",
-              background: "#1a1040",
-              color: "#b39ddb",
-              fontSize: 16,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginTop: 4,
-            }}
-            title="Key dynamics"
-          >
-            ?
-          </button>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0, marginTop: 4 }}>
+            <button
+              onClick={() => setShowIVModal(true)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                border: "1px solid #2a1f5e",
+                background: "#1a1040",
+                color: "#b39ddb",
+                fontSize: 15,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              title="IV Solver"
+            >
+              🔧
+            </button>
+            <button
+              onClick={() => setShowDynamicsModal(true)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                border: "1px solid #2a1f5e",
+                background: "#1a1040",
+                color: "#b39ddb",
+                fontSize: 16,
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              title="Key dynamics"
+            >
+              ?
+            </button>
+          </div>
         </div>
 
         {/* ───────────── STATE CARDS ───────────── */}
@@ -1781,361 +1801,403 @@ export default function WarrantCalculator() {
           direction={direction}
         />
 
-        {/* ───────────── IV SOLVER ───────────── */}
-        <div style={{ ...cardStyle, marginBottom: 28 }}>
+        {/* ───────────── IV SOLVER MODAL ───────────── */}
+        {showIVModal && (
           <div
+            onClick={() => setShowIVModal(false)}
             style={{
-              padding: "16px 24px",
-              borderBottom: "1px solid #1a2035",
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
             }}
           >
-            <h2
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: 16,
-                fontWeight: 600,
-                color: "#fff",
-              }}
-            >
-              Implied Volatility Solver
-            </h2>
-            <p style={{ fontSize: 11, color: "#6b7394", marginTop: 4 }}>
-              Newton-Raphson inversion — enter a market price to back out the
-              implied vol
-            </p>
-          </div>
-
-          <div style={{ padding: "20px 24px" }}>
             <div
+              onClick={(e) => e.stopPropagation()}
               style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 16,
-                marginBottom: 16,
+                ...cardStyle,
+                maxWidth: 600,
+                width: "90%",
+                maxHeight: "90vh",
+                overflowY: "auto",
+                position: "relative",
               }}
             >
-              {[
-                {
-                  label: "Spot price",
-                  value: ivSpot,
-                  setter: setIvSpot,
-                  step: 0.1,
-                },
-                {
-                  label: "Strike price",
-                  value: ivStrike,
-                  setter: setIvStrike,
-                  step: 1,
-                },
-                {
-                  label: `Market price (${ivType})`,
-                  value: ivMarketPrice,
-                  setter: setIvMarketPrice,
-                  step: 0.1,
-                },
-              ].map((field, i) => (
-                <div key={i}>
-                  <label style={labelStyle}>{field.label}</label>
-                  <input
-                    type="number"
-                    value={field.value}
-                    step={field.step}
-                    onChange={(e) => field.setter(Number(e.target.value))}
-                    style={inputStyle}
-                  />
-                </div>
-              ))}
-            </div>
+              <button
+                onClick={() => setShowIVModal(false)}
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 16,
+                  background: "none",
+                  border: "none",
+                  color: "#6b7394",
+                  fontSize: 20,
+                  cursor: "pointer",
+                  lineHeight: 1,
+                  zIndex: 1,
+                }}
+              >
+                &times;
+              </button>
+              <div
+                style={{
+                  padding: "16px 24px",
+                  borderBottom: "1px solid #1a2035",
+                }}
+              >
+                <h2
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: "#fff",
+                  }}
+                >
+                  Implied Volatility Solver
+                </h2>
+                <p style={{ fontSize: 11, color: "#6b7394", marginTop: 4 }}>
+                  Newton-Raphson inversion — enter a market price to back out the
+                  implied vol
+                </p>
+              </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 16,
-                marginBottom: 20,
-              }}
-            >
-              <div>
-                <label style={labelStyle}>Days to expiry</label>
-                <input
-                  type="number"
-                  value={ivDays}
-                  step={1}
-                  onChange={(e) => setIvDays(Number(e.target.value))}
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Risk-free rate (%)</label>
-                <input
-                  type="number"
-                  value={ivRate}
-                  step={0.1}
-                  onChange={(e) => setIvRate(Number(e.target.value))}
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Option type</label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {["put", "call"].map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setIvType(t)}
-                      style={{
-                        flex: 1,
-                        padding: "10px",
-                        borderRadius: 6,
-                        border:
-                          ivType === t
-                            ? "1px solid #4fc3f7"
-                            : "1px solid #1a2035",
-                        background:
-                          ivType === t
-                            ? "rgba(79,195,247,0.1)"
-                            : "#0a0e17",
-                        color: ivType === t ? "#4fc3f7" : "#6b7394",
-                        fontSize: 13,
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {t}
-                    </button>
+              <div style={{ padding: "20px 24px" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gap: 16,
+                    marginBottom: 16,
+                  }}
+                >
+                  {[
+                    {
+                      label: "Spot price",
+                      value: ivSpot,
+                      setter: setIvSpot,
+                      step: 0.1,
+                    },
+                    {
+                      label: "Strike price",
+                      value: ivStrike,
+                      setter: setIvStrike,
+                      step: 1,
+                    },
+                    {
+                      label: `Market price (${ivType})`,
+                      value: ivMarketPrice,
+                      setter: setIvMarketPrice,
+                      step: 0.1,
+                    },
+                  ].map((field, i) => (
+                    <div key={i}>
+                      <label style={labelStyle}>{field.label}</label>
+                      <input
+                        type="number"
+                        value={field.value}
+                        step={field.step}
+                        onChange={(e) => field.setter(Number(e.target.value))}
+                        style={inputStyle}
+                      />
+                    </div>
                   ))}
                 </div>
-              </div>
-            </div>
 
-            {ivResult && (
-              <div style={{ marginTop: 20 }}>
-                {ivResult.converged ? (
-                  <div
-                    style={{
-                      background: "rgba(76,175,80,0.08)",
-                      border: "1px solid rgba(76,175,80,0.25)",
-                      borderRadius: 8,
-                      padding: "16px 20px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 10,
-                            color: "#6b7394",
-                            textTransform: "uppercase",
-                            letterSpacing: 1,
-                            marginBottom: 4,
-                          }}
-                        >
-                          Implied Volatility
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 28,
-                            fontWeight: 700,
-                            color: "#4caf50",
-                          }}
-                        >
-                          {ivResult.iv.toFixed(2)}%
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 11, color: "#6b7394" }}>
-                          Converged in {ivResult.iterations} iteration
-                          {ivResult.iterations !== 1 ? "s" : ""}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "#6b7394",
-                            marginTop: 2,
-                          }}
-                        >
-                          ±
-                          {(
-                            (ivSpot * ivResult.iv) /
-                            100 /
-                            Math.sqrt(12)
-                          ).toFixed(1)}{" "}
-                          SEK/month (1 sigma)
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "#6b7394",
-                            marginTop: 2,
-                          }}
-                        >
-                          ±{((ivSpot * ivResult.iv) / 100).toFixed(1)}{" "}
-                          SEK/year (1 sigma)
-                        </div>
-                      </div>
-                    </div>
-
-                    {ivResult.steps && (
-                      <div style={{ marginTop: 14 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gap: 16,
+                    marginBottom: 20,
+                  }}
+                >
+                  <div>
+                    <label style={labelStyle}>Days to expiry</label>
+                    <input
+                      type="number"
+                      value={ivDays}
+                      step={1}
+                      onChange={(e) => setIvDays(Number(e.target.value))}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Risk-free rate (%)</label>
+                    <input
+                      type="number"
+                      value={ivRate}
+                      step={0.1}
+                      onChange={(e) => setIvRate(Number(e.target.value))}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Option type</label>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {["put", "call"].map((t) => (
                         <button
-                          onClick={() => setShowSteps(!showSteps)}
+                          key={t}
+                          onClick={() => setIvType(t)}
                           style={{
-                            background: "none",
-                            border: "1px solid #1a2035",
-                            borderRadius: 4,
-                            color: "#6b7394",
-                            fontSize: 10,
-                            padding: "4px 10px",
-                            cursor: "pointer",
+                            flex: 1,
+                            padding: "10px",
+                            borderRadius: 6,
+                            border:
+                              ivType === t
+                                ? "1px solid #4fc3f7"
+                                : "1px solid #1a2035",
+                            background:
+                              ivType === t
+                                ? "rgba(79,195,247,0.1)"
+                                : "#0a0e17",
+                            color: ivType === t ? "#4fc3f7" : "#6b7394",
+                            fontSize: 13,
                             fontFamily: "'JetBrains Mono', monospace",
-                            letterSpacing: 1,
+                            fontWeight: 600,
+                            cursor: "pointer",
                             textTransform: "uppercase",
                           }}
                         >
-                          {showSteps ? "Hide" : "Show"} Newton-Raphson steps
+                          {t}
                         </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
-                        {showSteps && (
-                          <div style={{ marginTop: 10, overflowX: "auto" }}>
-                            <table
+                {ivResult && (
+                  <div style={{ marginTop: 20 }}>
+                    {ivResult.converged ? (
+                      <div
+                        style={{
+                          background: "rgba(76,175,80,0.08)",
+                          border: "1px solid rgba(76,175,80,0.25)",
+                          borderRadius: 8,
+                          padding: "16px 20px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <div>
+                            <div
                               style={{
-                                width: "100%",
-                                borderCollapse: "collapse",
-                                fontSize: 11,
+                                fontSize: 10,
+                                color: "#6b7394",
+                                textTransform: "uppercase",
+                                letterSpacing: 1,
+                                marginBottom: 4,
                               }}
                             >
-                              <thead>
-                                <tr>
-                                  {[
-                                    "Iter",
-                                    "sigma guess",
-                                    "BS price",
-                                    "Error",
-                                    "Vega",
-                                  ].map((h, i) => (
-                                    <th
-                                      key={i}
-                                      style={{
-                                        padding: "6px 10px",
-                                        textAlign: "right",
-                                        fontSize: 9,
-                                        color: "#6b7394",
-                                        textTransform: "uppercase",
-                                        letterSpacing: 1,
-                                        borderBottom: "1px solid #1a2035",
-                                      }}
-                                    >
-                                      {h}
-                                    </th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {ivResult.steps.map((s, i) => (
-                                  <tr
-                                    key={i}
-                                    style={{
-                                      borderBottom: "1px solid #131a2e",
-                                    }}
-                                  >
-                                    <td
-                                      style={{
-                                        padding: "5px 10px",
-                                        textAlign: "right",
-                                        color: "#6b7394",
-                                      }}
-                                    >
-                                      {s.iter}
-                                    </td>
-                                    <td
-                                      style={{
-                                        padding: "5px 10px",
-                                        textAlign: "right",
-                                        color: "#4fc3f7",
-                                      }}
-                                    >
-                                      {s.sigma.toFixed(4)}%
-                                    </td>
-                                    <td
-                                      style={{
-                                        padding: "5px 10px",
-                                        textAlign: "right",
-                                        color: "#c8cdd8",
-                                      }}
-                                    >
-                                      {s.bsPrice.toFixed(6)}
-                                    </td>
-                                    <td
-                                      style={{
-                                        padding: "5px 10px",
-                                        textAlign: "right",
-                                        color:
-                                          Math.abs(s.diff) < 0.01
-                                            ? "#4caf50"
-                                            : "#e53935",
-                                      }}
-                                    >
-                                      {s.diff.toFixed(6)}
-                                    </td>
-                                    <td
-                                      style={{
-                                        padding: "5px 10px",
-                                        textAlign: "right",
-                                        color: "#9e9ec0",
-                                      }}
-                                    >
-                                      {s.vega.toFixed(4)}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                              Implied Volatility
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 28,
+                                fontWeight: 700,
+                                color: "#4caf50",
+                              }}
+                            >
+                              {ivResult.iv.toFixed(2)}%
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 11, color: "#6b7394" }}>
+                              Converged in {ivResult.iterations} iteration
+                              {ivResult.iterations !== 1 ? "s" : ""}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: "#6b7394",
+                                marginTop: 2,
+                              }}
+                            >
+                              ±
+                              {(
+                                (ivSpot * ivResult.iv) /
+                                100 /
+                                Math.sqrt(12)
+                              ).toFixed(1)}{" "}
+                              SEK/month (1 sigma)
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: "#6b7394",
+                                marginTop: 2,
+                              }}
+                            >
+                              ±{((ivSpot * ivResult.iv) / 100).toFixed(1)}{" "}
+                              SEK/year (1 sigma)
+                            </div>
+                          </div>
+                        </div>
+
+                        {ivResult.steps && (
+                          <div style={{ marginTop: 14 }}>
+                            <button
+                              onClick={() => setShowSteps(!showSteps)}
+                              style={{
+                                background: "none",
+                                border: "1px solid #1a2035",
+                                borderRadius: 4,
+                                color: "#6b7394",
+                                fontSize: 10,
+                                padding: "4px 10px",
+                                cursor: "pointer",
+                                fontFamily: "'JetBrains Mono', monospace",
+                                letterSpacing: 1,
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {showSteps ? "Hide" : "Show"} Newton-Raphson steps
+                            </button>
+
+                            {showSteps && (
+                              <div style={{ marginTop: 10, overflowX: "auto" }}>
+                                <table
+                                  style={{
+                                    width: "100%",
+                                    borderCollapse: "collapse",
+                                    fontSize: 11,
+                                  }}
+                                >
+                                  <thead>
+                                    <tr>
+                                      {[
+                                        "Iter",
+                                        "sigma guess",
+                                        "BS price",
+                                        "Error",
+                                        "Vega",
+                                      ].map((h, i) => (
+                                        <th
+                                          key={i}
+                                          style={{
+                                            padding: "6px 10px",
+                                            textAlign: "right",
+                                            fontSize: 9,
+                                            color: "#6b7394",
+                                            textTransform: "uppercase",
+                                            letterSpacing: 1,
+                                            borderBottom: "1px solid #1a2035",
+                                          }}
+                                        >
+                                          {h}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {ivResult.steps.map((s, i) => (
+                                      <tr
+                                        key={i}
+                                        style={{
+                                          borderBottom: "1px solid #131a2e",
+                                        }}
+                                      >
+                                        <td
+                                          style={{
+                                            padding: "5px 10px",
+                                            textAlign: "right",
+                                            color: "#6b7394",
+                                          }}
+                                        >
+                                          {s.iter}
+                                        </td>
+                                        <td
+                                          style={{
+                                            padding: "5px 10px",
+                                            textAlign: "right",
+                                            color: "#4fc3f7",
+                                          }}
+                                        >
+                                          {s.sigma.toFixed(4)}%
+                                        </td>
+                                        <td
+                                          style={{
+                                            padding: "5px 10px",
+                                            textAlign: "right",
+                                            color: "#c8cdd8",
+                                          }}
+                                        >
+                                          {s.bsPrice.toFixed(6)}
+                                        </td>
+                                        <td
+                                          style={{
+                                            padding: "5px 10px",
+                                            textAlign: "right",
+                                            color:
+                                              Math.abs(s.diff) < 0.01
+                                                ? "#4caf50"
+                                                : "#e53935",
+                                          }}
+                                        >
+                                          {s.diff.toFixed(6)}
+                                        </td>
+                                        <td
+                                          style={{
+                                            padding: "5px 10px",
+                                            textAlign: "right",
+                                            color: "#9e9ec0",
+                                          }}
+                                        >
+                                          {s.vega.toFixed(4)}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
+                    ) : (
+                      <div
+                        style={{
+                          background: "rgba(229,57,53,0.08)",
+                          border: "1px solid rgba(229,57,53,0.25)",
+                          borderRadius: 8,
+                          padding: "16px 20px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 13,
+                            color: "#e53935",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Could not solve
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "#9e6060",
+                            marginTop: 4,
+                          }}
+                        >
+                          {ivResult.error ||
+                            "The solver did not converge. Check that inputs are valid and the market price is above intrinsic value."}
+                        </div>
+                      </div>
                     )}
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      background: "rgba(229,57,53,0.08)",
-                      border: "1px solid rgba(229,57,53,0.25)",
-                      borderRadius: 8,
-                      padding: "16px 20px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: "#e53935",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Could not solve
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "#9e6060",
-                        marginTop: 4,
-                      }}
-                    >
-                      {ivResult.error ||
-                        "The solver did not converge. Check that inputs are valid and the market price is above intrinsic value."}
-                    </div>
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ───────────── KEY DYNAMICS MODAL ───────────── */}
         {showDynamicsModal && (
