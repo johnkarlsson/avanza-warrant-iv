@@ -147,6 +147,7 @@ export default function WarrantCalculator() {
   const [searchResults, setSearchResults] = useState([]);
   const [warrantDetails, setWarrantDetails] = useState({});
   const [computedIVs, setComputedIVs] = useState({});
+  const [activityScores, setActivityScores] = useState({});
   const [searching, setSearching] = useState(false);
   const [totalResults, setTotalResults] = useState(0);
   const [searchError, setSearchError] = useState(null);
@@ -181,10 +182,11 @@ export default function WarrantCalculator() {
     try {
       const raw = localStorage.getItem("avanza_warrant_cache");
       if (raw) {
-        const { results, details, ivs, total, calc, search } = JSON.parse(raw);
+        const { results, details, ivs, activity, total, calc, search } = JSON.parse(raw);
         if (results) setSearchResults(results);
         if (details) setWarrantDetails(details);
         if (ivs) setComputedIVs(ivs);
+        if (activity) setActivityScores(activity);
         if (total != null) setTotalResults(total);
         if (search) {
           if (search.underlyingSearch != null) setUnderlyingSearch(search.underlyingSearch);
@@ -224,12 +226,13 @@ export default function WarrantCalculator() {
         results: searchResults,
         details: warrantDetails,
         ivs: computedIVs,
+        activity: activityScores,
         total: totalResults,
       }));
     } catch (e) {
       console.error("Failed to save search cache:", e);
     }
-  }, [searchResults, warrantDetails, computedIVs, totalResults]);
+  }, [searchResults, warrantDetails, computedIVs, activityScores, totalResults]);
 
   // ── Save search params to cache ──
   useEffect(() => {
@@ -379,6 +382,44 @@ export default function WarrantCalculator() {
             : (ivValues[mid - 1] + ivValues[mid]) / 2;
         setVol(Math.round(median));
       }
+
+      // Fetch activity (avg daily price changes) for each warrant
+      const avgChanges = {};
+      if (warrants.length > 0) {
+        await Promise.all(
+          warrants.map(async (w) => {
+            try {
+              const res = await fetch(`/api/price-chart/stock/${w.orderbookId}?timePeriod=one_month`);
+              if (!res.ok) return;
+              const json = await res.json();
+              const ohlc = json.ohlc || [];
+              if (ohlc.length === 0) return;
+              const byDay = {};
+              for (const p of ohlc) {
+                const day = new Date(p.timestamp).toDateString();
+                byDay[day] = (byDay[day] || 0) + 1;
+              }
+              const days = Object.keys(byDay).length;
+              avgChanges[w.orderbookId] = days > 0 ? ohlc.length / days : 0;
+            } catch {
+              // skip
+            }
+          })
+        );
+      }
+      // Percentile-normalize
+      const vals = Object.values(avgChanges).sort((a, b) => a - b);
+      const actMap = {};
+      for (const [id, avg] of Object.entries(avgChanges)) {
+        if (vals.length <= 1) {
+          actMap[id] = vals.length === 1 ? 50 : 0;
+        } else {
+          let rank = 0;
+          for (const v of vals) { if (v < avg) rank++; }
+          actMap[id] = Math.round((rank / (vals.length - 1)) * 100);
+        }
+      }
+      setActivityScores(actMap);
     } catch (e) {
       console.error("Search failed:", e);
       setSearchError(e.message);
@@ -406,6 +447,7 @@ export default function WarrantCalculator() {
         lastPrice: d?.quote?.last ?? null,
         spotPrice: d?.underlying?.quote?.last ?? null,
         iv: computedIVs[w.orderbookId] ?? null,
+        activity: activityScores[w.orderbookId] ?? null,
         expiry: parseWarrantExpiry(w.name),
         currency: d?.listing?.currency || "SEK",
       };
@@ -421,7 +463,7 @@ export default function WarrantCalculator() {
       });
     }
     return enriched;
-  }, [searchResults, warrantDetails, computedIVs, sortField, sortOrder]);
+  }, [searchResults, warrantDetails, computedIVs, activityScores, sortField, sortOrder]);
 
   // ── Median IV display ──
   const medianIV = useMemo(() => {
@@ -477,7 +519,6 @@ export default function WarrantCalculator() {
         setIvDays(Math.max(days, 1));
       }
       setIvType(w.direction === "short" ? "put" : "call");
-      setIvResult(null);
 
       setTimeout(() => {
         detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -486,14 +527,16 @@ export default function WarrantCalculator() {
     [warrantDetails, computedIVs]
   );
 
-  // ── IV Solver ──
-  const runIvSolver = () => {
-    const T = ivDays / 365;
-    const r = ivRate / 100;
-    const result = solveIV(ivMarketPrice, ivSpot, ivStrike, T, r, ivType);
-    setIvResult(result);
-    setShowSteps(false);
-  };
+  // ── IV Solver (auto-run) ──
+  useEffect(() => {
+    if (ivSpot > 0 && ivStrike > 0 && ivMarketPrice > 0 && ivDays > 0) {
+      const T = ivDays / 365;
+      const r = ivRate / 100;
+      setIvResult(solveIV(ivMarketPrice, ivSpot, ivStrike, T, r, ivType));
+    } else {
+      setIvResult(null);
+    }
+  }, [ivSpot, ivStrike, ivMarketPrice, ivDays, ivRate, ivType]);
 
   // ── Scenario analysis ──
   const scenarios = useMemo(() => {
@@ -758,6 +801,7 @@ export default function WarrantCalculator() {
                     { value: "strike", label: "Strike" },
                     { value: "lastPrice", label: "Price" },
                     { value: "iv", label: "IV" },
+                    { value: "activity", label: "Activity" },
                   ].map((opt) => (
                     <button
                       key={opt.value}
@@ -951,6 +995,7 @@ export default function WarrantCalculator() {
                       "Parity",
                       "Price",
                       "IV",
+                      "Activity",
                     ].map((h, i) => (
                       <th
                         key={i}
@@ -999,6 +1044,27 @@ export default function WarrantCalculator() {
                         }}
                       >
                         {r.name}
+                        <a
+                          href={`https://www.avanza.se/borshandlade-produkter/warranter-torg/om-warranten.html/${r.orderbookId}/${r.name.toLowerCase().replace(/\s+/g, "-")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            display: "inline-block",
+                            marginLeft: 6,
+                            padding: "1px 4px",
+                            fontSize: 9,
+                            lineHeight: 1,
+                            border: "1px solid #1a2035",
+                            borderRadius: 3,
+                            color: "#6b7394",
+                            textDecoration: "none",
+                            verticalAlign: "middle",
+                          }}
+                          title="Open on Avanza"
+                        >
+                          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 1.5H2a.5.5 0 00-.5.5v8a.5.5 0 00.5.5h8a.5.5 0 00.5-.5V7.5"/><path d="M7 1.5h3.5V5"/><path d="M5 7L10.5 1.5"/></svg>
+                        </a>
                       </td>
                       <td
                         style={{
@@ -1102,6 +1168,23 @@ export default function WarrantCalculator() {
                       >
                         {r.iv != null ? `${r.iv.toFixed(1)}%` : "--"}
                       </td>
+                      <td
+                        style={{
+                          padding: "12px 14px",
+                          textAlign: "right",
+                          fontWeight: 600,
+                          color:
+                            r.activity != null
+                              ? r.activity >= 70
+                                ? "#4caf50"
+                                : r.activity >= 30
+                                  ? "#ff9800"
+                                  : "#e53935"
+                              : "#3a4060",
+                        }}
+                      >
+                        {r.activity != null ? r.activity : "--"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1139,6 +1222,28 @@ export default function WarrantCalculator() {
             }}
           >
             {warrantName || "Select a warrant above"}
+            {warrantName && selectedWarrantId && (
+              <a
+                href={`https://www.avanza.se/borshandlade-produkter/warranter-torg/om-warranten.html/${selectedWarrantId}/${warrantName.toLowerCase().replace(/\s+/g, "-")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-block",
+                  marginLeft: 10,
+                  padding: "2px 7px",
+                  fontSize: 13,
+                  lineHeight: 1,
+                  border: "1px solid #1a2035",
+                  borderRadius: 4,
+                  color: "#6b7394",
+                  textDecoration: "none",
+                  verticalAlign: "middle",
+                }}
+                title="Open on Avanza"
+              >
+                <svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 1.5H2a.5.5 0 00-.5.5v8a.5.5 0 00.5.5h8a.5.5 0 00.5-.5V7.5"/><path d="M7 1.5h3.5V5"/><path d="M5 7L10.5 1.5"/></svg>
+              </a>
+            )}
           </h1>
           <p
             style={{
@@ -1681,27 +1786,6 @@ export default function WarrantCalculator() {
               </div>
             </div>
 
-            <button
-              onClick={runIvSolver}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: 8,
-                border: "none",
-                background:
-                  "linear-gradient(135deg, #4fc3f7 0%, #2196f3 100%)",
-                color: "#0a0e17",
-                fontSize: 13,
-                fontWeight: 700,
-                fontFamily: "'JetBrains Mono', monospace",
-                letterSpacing: 1,
-                cursor: "pointer",
-                textTransform: "uppercase",
-              }}
-            >
-              Solve for implied volatility
-            </button>
-
             {ivResult && (
               <div style={{ marginTop: 20 }}>
                 {ivResult.converged ? (
@@ -1754,7 +1838,7 @@ export default function WarrantCalculator() {
                             marginTop: 2,
                           }}
                         >
-                          +-
+                          ±
                           {(
                             (ivSpot * ivResult.iv) /
                             100 /
@@ -1769,7 +1853,7 @@ export default function WarrantCalculator() {
                             marginTop: 2,
                           }}
                         >
-                          +-{((ivSpot * ivResult.iv) / 100).toFixed(1)}{" "}
+                          ±{((ivSpot * ivResult.iv) / 100).toFixed(1)}{" "}
                           SEK/year (1 sigma)
                         </div>
                       </div>

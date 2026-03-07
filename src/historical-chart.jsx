@@ -702,7 +702,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                     (current price {stats.current.toFixed(1)} SEK)
                   </div>
                   <div>
-                    Daily (1 sigma): +/-{" "}
+                    Daily (1 sigma): ±{" "}
                     {(
                       (stats.current * rv.rv30 * Math.sqrt(1 / 252)) /
                       100
@@ -710,7 +710,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                     SEK ({(rv.rv30 / Math.sqrt(252)).toFixed(2)}%)
                   </div>
                   <div>
-                    Weekly (1 sigma): +/-{" "}
+                    Weekly (1 sigma): ±{" "}
                     {(
                       (stats.current * rv.rv30 * Math.sqrt(1 / 52)) /
                       100
@@ -718,7 +718,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                     SEK ({(rv.rv30 / Math.sqrt(52)).toFixed(2)}%)
                   </div>
                   <div>
-                    Monthly (1 sigma): +/-{" "}
+                    Monthly (1 sigma): ±{" "}
                     {(
                       (stats.current * rv.rv30 * Math.sqrt(1 / 12)) /
                       100
