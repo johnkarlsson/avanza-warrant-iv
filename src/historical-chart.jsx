@@ -864,7 +864,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                 style={{
                   display: "grid",
                   gridTemplateColumns:
-                    `repeat(${3 + (medianIV != null ? 1 : 0) + (rvDist ? 1 : 0)}, 1fr)`,
+                    `repeat(${3 + (rvDist ? 1 : 0)}, 1fr)`,
                   gap: 10,
                 }}
               >
@@ -927,7 +927,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                         marginBottom: 2,
                       }}
                     >
-                      90-Day Rolling RV (RAG)
+                      90-Day Rolling RV (Bear/All/Bull)
                     </div>
                     {[
                       { label: "p25", all: rvDist.p25, red: rvDist.red?.p25, green: rvDist.green?.p25 },
@@ -952,59 +952,6 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                   </div>
                 )}
 
-                {medianIV != null && (
-                  <div style={statBox}>
-                    <div
-                      style={{
-                        fontSize: 9,
-                        color: "#6b7394",
-                        textTransform: "uppercase",
-                        letterSpacing: 1,
-                        marginBottom: 2,
-                      }}
-                    >
-                      Median IV
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 18,
-                        fontWeight: 700,
-                        color: "#4caf50",
-                      }}
-                    >
-                      {medianIV.toFixed(1)}%
-                    </div>
-                    {rv.rv30 != null && (
-                      <div
-                        style={{
-                          fontSize: 9,
-                          color:
-                            medianIV > rv.rv30 ? "#ff9800" : "#4caf50",
-                          marginTop: 2,
-                        }}
-                      >
-                        {medianIV > rv.rv30 ? "+" : ""}
-                        {(medianIV - rv.rv30).toFixed(1)}pp vs 30d RV
-                      </div>
-                    )}
-                    {rvDist?.ivRank != null && (
-                      <div
-                        style={{
-                          fontSize: 9,
-                          marginTop: 2,
-                          color:
-                            rvDist.ivRank > 75
-                              ? "#ff9800"
-                              : rvDist.ivRank < 25
-                                ? "#4caf50"
-                                : "#4fc3f7",
-                        }}
-                      >
-                        {rvDist.ivRank.toFixed(0)}th pctl vs 5Y RV
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* IV vs RV summary */}
@@ -1032,29 +979,29 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                       <strong style={{ color: "#ff9800" }}>
                         Warrants are expensive
                       </strong>{" "}
-                      &mdash; implied vol ({medianIV.toFixed(1)}%) is{" "}
-                      {(medianIV - rv.rv30).toFixed(1)}pp above 30-day realized
-                      vol ({rv.rv30.toFixed(1)}%). The market is pricing in more
-                      turbulence than recent history shows.
+                      &mdash; implied vol (<span style={{ color: volRegime(medianIV).color }}>{medianIV.toFixed(1)}%</span>) is{" "}
+                      <span style={{ color: "#ff9800" }}>{(medianIV - rv.rv30).toFixed(1)}pp</span> above 30-day realized
+                      vol (<span style={{ color: volRegime(rv.rv30).color }}>{rv.rv30.toFixed(1)}%</span>). The market is pricing in more
+                      turbulence than recent history shows.{rvDist?.ivRank != null && <> IV is at the <span style={{ color: rvDist.ivRank > 75 ? "#ff9800" : rvDist.ivRank < 25 ? "#4caf50" : "#4fc3f7" }}>{rvDist.ivRank.toFixed(0)}th percentile</span> vs 5Y realized vol.</>}
                     </>
                   ) : medianIV < rv.rv30 - 5 ? (
                     <>
                       <strong style={{ color: "#4caf50" }}>
                         Warrants may be cheap
                       </strong>{" "}
-                      &mdash; implied vol ({medianIV.toFixed(1)}%) is{" "}
-                      {(rv.rv30 - medianIV).toFixed(1)}pp below 30-day realized
-                      vol ({rv.rv30.toFixed(1)}%). During escalating volatility,
-                      this gap suggests warrant pricing hasn&rsquo;t caught up.
+                      &mdash; implied vol (<span style={{ color: volRegime(medianIV).color }}>{medianIV.toFixed(1)}%</span>) is{" "}
+                      <span style={{ color: "#4caf50" }}>{(rv.rv30 - medianIV).toFixed(1)}pp</span> below 30-day realized
+                      vol (<span style={{ color: volRegime(rv.rv30).color }}>{rv.rv30.toFixed(1)}%</span>). During escalating volatility,
+                      this gap suggests warrant pricing hasn&rsquo;t caught up.{rvDist?.ivRank != null && <> IV is at the <span style={{ color: rvDist.ivRank > 75 ? "#ff9800" : rvDist.ivRank < 25 ? "#4caf50" : "#4fc3f7" }}>{rvDist.ivRank.toFixed(0)}th percentile</span> vs 5Y realized vol.</>}
                     </>
                   ) : (
                     <>
                       <strong style={{ color: "#6b7394" }}>
                         Fair pricing
                       </strong>{" "}
-                      &mdash; implied vol ({medianIV.toFixed(1)}%) is close to
-                      30-day realized vol ({rv.rv30.toFixed(1)}%). Warrants are
-                      priced roughly in line with recent realized moves.
+                      &mdash; implied vol (<span style={{ color: volRegime(medianIV).color }}>{medianIV.toFixed(1)}%</span>) is close to
+                      30-day realized vol (<span style={{ color: volRegime(rv.rv30).color }}>{rv.rv30.toFixed(1)}%</span>). Warrants are
+                      priced roughly in line with recent realized moves.{rvDist?.ivRank != null && <> IV is at the <span style={{ color: rvDist.ivRank > 75 ? "#ff9800" : rvDist.ivRank < 25 ? "#4caf50" : "#4fc3f7" }}>{rvDist.ivRank.toFixed(0)}th percentile</span> vs 5Y realized vol.</>}
                     </>
                   )}
                 </div>

@@ -899,6 +899,7 @@ export default function WarrantCalculator() {
                     { value: "lastPrice", label: "Price" },
                     { value: "iv", label: "IV" },
                     { value: "activity", label: "Activity" },
+                    { value: "expiry", label: "Expiry" },
                   ].map((opt) => (
                     <button
                       key={opt.value}
@@ -1373,17 +1374,13 @@ export default function WarrantCalculator() {
             {
               label: "Strike",
               value: `${strike} SEK`,
-              color: calcDirection === "short" ? "#e53935" : "#4caf50",
+              sub: `${distToStrike > 0 ? "−" : "+"}${Math.abs(distToStrike).toFixed(1)}%`,
+              color: "#fff",
             },
             {
               label: "Warrant",
               value: `${warrantPrice.toFixed(2)} SEK`,
               color: "#4fc3f7",
-            },
-            {
-              label: "Distance to strike",
-              value: `${distToStrike > 0 ? "−" : "+"}${Math.abs(distToStrike).toFixed(1)}%`,
-              color: "#ff9800",
             },
             {
               label: "BS fair value",
@@ -1416,6 +1413,11 @@ export default function WarrantCalculator() {
               >
                 {item.value}
               </div>
+              {item.sub && (
+                <div style={{ fontSize: 18, fontWeight: 600, color: "#6b7394", marginTop: 2 }}>
+                  {item.sub}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1622,13 +1624,11 @@ export default function WarrantCalculator() {
                   {[
                     "Scenario",
                     "Change",
+                    "Probability",
                     underlyingName || "Spot",
-                    `${optionTypeLabel.charAt(0) + optionTypeLabel.slice(1).toLowerCase()} value/share`,
                     "Intrinsic",
                     "Warrant value",
-                    "P&L / warrant",
                     "Return",
-                    "Probability",
                   ].map((h, i) => (
                     <th
                       key={i}
@@ -1688,19 +1688,19 @@ export default function WarrantCalculator() {
                       style={{
                         padding: "12px 16px",
                         textAlign: "right",
-                        color: "#fff",
+                        color: "#b0bec5",
                       }}
                     >
-                      {r.newSpot}
+                      {r.prob}%
                     </td>
                     <td
                       style={{
                         padding: "12px 16px",
                         textAlign: "right",
-                        color: "#aaa",
+                        color: "#fff",
                       }}
                     >
-                      {r.optionValue}
+                      {r.newSpot}
                     </td>
                     <td
                       style={{
@@ -1731,32 +1731,12 @@ export default function WarrantCalculator() {
                       style={{
                         padding: "12px 16px",
                         textAlign: "right",
-                        fontWeight: 600,
-                        color: r.profitable ? "#4caf50" : "#e53935",
-                      }}
-                    >
-                      {r.profitable ? "+" : ""}
-                      {r.pnl}
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        textAlign: "right",
                         fontWeight: 700,
                         color: r.profitable ? "#4caf50" : "#e53935",
                       }}
                     >
                       {r.profitable ? "+" : ""}
                       {r.pnlPct}%
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        textAlign: "right",
-                        color: "#b0bec5",
-                      }}
-                    >
-                      {r.prob}%
                     </td>
                   </tr>
                 ))}
