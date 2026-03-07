@@ -636,10 +636,13 @@ export default function WarrantCalculator() {
           : Math.max(newSpot - strike, 0);
       const intrinsic = intrinsicRaw / parity;
 
-      const d2 = (Math.log(spotPrice / newSpot) + (riskFreeRate - sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
-      const prob = calcDirection === "short"
-        ? cdf(-d2)  // P(S_T ≤ newSpot)
-        : cdf(d2);  // P(S_T ≥ newSpot)
+      const daysFromNow = totalDaysToExpiry - daysToExpiry;
+      const Tprob = daysFromNow / 365;
+      const prob = daysFromNow <= 0 ? 0
+        : (() => {
+            const d2 = (Math.log(spotPrice / newSpot) + (riskFreeRate - sigma * sigma / 2) * Tprob) / (sigma * Math.sqrt(Tprob));
+            return calcDirection === "short" ? cdf(-d2) : cdf(d2);
+          })();
 
       return {
         ...s,
@@ -647,7 +650,13 @@ export default function WarrantCalculator() {
         optionValue: optionValue.toFixed(2),
         warrantVal: warrantTheoretical.toFixed(2),
         intrinsic: intrinsic.toFixed(2),
-        prob: (prob * 100).toFixed(1),
+        prob: (() => {
+          const pct = prob * 100;
+          if (pct === 0 || pct >= 0.05) return pct.toFixed(1);
+          // Show enough decimals to reveal the first significant digit
+          const decimals = Math.max(1, -Math.floor(Math.log10(pct)) + 1);
+          return pct.toFixed(decimals);
+        })(),
         pnl: pnlPerWarrant.toFixed(2),
         pnlPct: pnlPct.toFixed(0),
         profitable: pnlPerWarrant > 0,
@@ -660,6 +669,7 @@ export default function WarrantCalculator() {
     warrantPrice,
     vol,
     daysToExpiry,
+    totalDaysToExpiry,
     riskFreeRate,
     calcDirection,
     scenarios,

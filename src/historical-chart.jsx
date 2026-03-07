@@ -176,7 +176,7 @@ const statBox = {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function HistoricalChart({ underlyingName, underlyingId, medianIV, onRvDist, simulationData, simTimeoutPaths, simTimeoutTarget, simulating, direction }) {
-  const [intervalIdx, setIntervalIdx] = useState(2);
+  const [intervalIdx, setIntervalIdx] = useState(4);
   const [stockId, setStockId] = useState(underlyingId || "");
   const [stockLabel, setStockLabel] = useState(underlyingName || "");
   const [searchInput, setSearchInput] = useState(underlyingName || "");
