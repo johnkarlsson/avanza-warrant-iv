@@ -412,8 +412,8 @@ export default function WarrantCalculator() {
       if (expiry) {
         const today = new Date();
         const days = Math.max(Math.round((expiry - today) / (24 * 60 * 60 * 1000)), 1);
-        setDaysToExpiry(days);
         setTotalDaysToExpiry(days);
+        setDaysToExpiry(Math.round(days * 2 / 3));
       }
 
       // Set IV from computed value for this warrant
