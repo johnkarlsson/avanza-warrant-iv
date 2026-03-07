@@ -180,16 +180,72 @@ export default function WarrantCalculator() {
     try {
       const raw = localStorage.getItem("avanza_warrant_cache");
       if (raw) {
-        const { results, details, ivs, total } = JSON.parse(raw);
+        const { results, details, ivs, total, calc } = JSON.parse(raw);
         if (results) setSearchResults(results);
         if (details) setWarrantDetails(details);
         if (ivs) setComputedIVs(ivs);
         if (total != null) setTotalResults(total);
+        if (calc) {
+          if (calc.selectedWarrantId != null) setSelectedWarrantId(calc.selectedWarrantId);
+          if (calc.spotPrice != null) setSpotPrice(calc.spotPrice);
+          if (calc.strike != null) setStrike(calc.strike);
+          if (calc.parity != null) setParity(calc.parity);
+          if (calc.warrantPrice != null) setWarrantPrice(calc.warrantPrice);
+          if (calc.vol != null) setVol(calc.vol);
+          if (calc.daysToExpiry != null) setDaysToExpiry(calc.daysToExpiry);
+          if (calc.totalDaysToExpiry != null) setTotalDaysToExpiry(calc.totalDaysToExpiry);
+          if (calc.calcDirection != null) setCalcDirection(calc.calcDirection);
+          if (calc.warrantName != null) setWarrantName(calc.warrantName);
+          if (calc.underlyingName != null) setUnderlyingName(calc.underlyingName);
+        }
       }
     } catch (e) {
       console.error("Failed to load cache:", e);
     }
   }, []);
+
+  // ── Save search results to cache ──
+  useEffect(() => {
+    if (searchResults.length === 0) return;
+    try {
+      const existing = JSON.parse(localStorage.getItem("avanza_warrant_cache") || "{}");
+      localStorage.setItem("avanza_warrant_cache", JSON.stringify({
+        ...existing,
+        results: searchResults,
+        details: warrantDetails,
+        ivs: computedIVs,
+        total: totalResults,
+      }));
+    } catch (e) {
+      console.error("Failed to save search cache:", e);
+    }
+  }, [searchResults, warrantDetails, computedIVs, totalResults]);
+
+  // ── Save calculator state to cache ──
+  useEffect(() => {
+    if (!selectedWarrantId) return;
+    try {
+      const existing = JSON.parse(localStorage.getItem("avanza_warrant_cache") || "{}");
+      localStorage.setItem("avanza_warrant_cache", JSON.stringify({
+        ...existing,
+        calc: {
+          selectedWarrantId,
+          spotPrice,
+          strike,
+          parity,
+          warrantPrice,
+          vol,
+          daysToExpiry,
+          totalDaysToExpiry,
+          calcDirection,
+          warrantName,
+          underlyingName,
+        },
+      }));
+    } catch (e) {
+      console.error("Failed to save calc cache:", e);
+    }
+  }, [selectedWarrantId, spotPrice, strike, parity, warrantPrice, vol, daysToExpiry, totalDaysToExpiry, calcDirection, warrantName, underlyingName]);
 
   // ── Load filter options on mount ──
   useEffect(() => {
@@ -288,18 +344,6 @@ export default function WarrantCalculator() {
         }
       }
       setComputedIVs(ivMap);
-
-      // Save to cache
-      try {
-        localStorage.setItem("avanza_warrant_cache", JSON.stringify({
-          results: warrants,
-          details,
-          ivs: ivMap,
-          total: data.totalNumberOfOrderbooks || 0,
-        }));
-      } catch (e) {
-        console.error("Failed to save cache:", e);
-      }
 
       // Set median IV as the vol for the calculator
       const ivValues = Object.values(ivMap);
