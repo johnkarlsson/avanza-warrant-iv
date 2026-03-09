@@ -221,6 +221,7 @@ export default function WarrantCalculator() {
   const [cacheLoaded, setCacheLoaded] = useState(false);
   const [favorites, setFavorites] = useState(new Set());
   const [daysFromNowLocked, setDaysFromNowLocked] = useState(false);
+  const [volLocked, setVolLocked] = useState(false);
 
   // ── Toggle favorite ──
   const toggleFavorite = useCallback((orderbookId, e) => {
@@ -439,16 +440,18 @@ export default function WarrantCalculator() {
       }
       setComputedIVs(ivMap);
 
-      // Set median IV as the vol for the calculator
-      const ivValues = Object.values(ivMap);
-      if (ivValues.length > 0) {
-        ivValues.sort((a, b) => a - b);
-        const mid = Math.floor(ivValues.length / 2);
-        const median =
-          ivValues.length % 2 === 1
-            ? ivValues[mid]
-            : (ivValues[mid - 1] + ivValues[mid]) / 2;
-        setVol(Math.round(median));
+      // Set median IV as the vol for the calculator (unless locked)
+      if (!volLocked) {
+        const ivValues = Object.values(ivMap);
+        if (ivValues.length > 0) {
+          ivValues.sort((a, b) => a - b);
+          const mid = Math.floor(ivValues.length / 2);
+          const median =
+            ivValues.length % 2 === 1
+              ? ivValues[mid]
+              : (ivValues[mid - 1] + ivValues[mid]) / 2;
+          setVol(Math.round(median));
+        }
       }
 
       // Fetch activity (avg daily price changes) for each warrant
@@ -493,7 +496,7 @@ export default function WarrantCalculator() {
       setSearchError(e.message);
     }
     setSearching(false);
-  }, [underlyingId, direction, subType, endDate, sortField, sortOrder, riskFreeRate]);
+  }, [underlyingId, direction, subType, endDate, sortField, sortOrder, riskFreeRate, volLocked]);
 
   // ── Re-search when direction changes ──
   const directionRef = useRef(direction);
@@ -625,10 +628,12 @@ export default function WarrantCalculator() {
         }
       }
 
-      // Set IV from computed value for this warrant
-      const iv = computedIVs[w.orderbookId];
-      if (iv != null) {
-        setVol(Math.round(iv));
+      // Set IV from computed value for this warrant (unless locked)
+      if (!volLocked) {
+        const iv = computedIVs[w.orderbookId];
+        if (iv != null) {
+          setVol(Math.round(iv));
+        }
       }
 
       // Also populate IV solver
@@ -648,7 +653,7 @@ export default function WarrantCalculator() {
         if (!isPanelVisible(1)) scrollToPanel(1);
       }, 0);
     },
-    [warrantDetails, computedIVs, scrollToPanel, isPanelVisible, daysFromNowLocked, totalDaysToExpiry, daysToExpiry]
+    [warrantDetails, computedIVs, scrollToPanel, isPanelVisible, daysFromNowLocked, totalDaysToExpiry, daysToExpiry, volLocked]
   );
 
   // ── IV Solver (auto-run) ──
@@ -1827,23 +1832,37 @@ export default function WarrantCalculator() {
                 >
                   Implied vol
                 </span>
-                <button
-                  onClick={() => setShowIVExplainer(true)}
-                  style={{
-                    background: "#1a1040",
-                    border: "1px solid #2a1f5e",
-                    borderRadius: 4,
-                    color: "#b39ddb",
-                    fontSize: 10,
-                    padding: "1px 6px",
-                    cursor: "pointer",
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontWeight: 700,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  ?
-                </button>
+                <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <button
+                    onClick={() => setShowIVExplainer(true)}
+                    style={{
+                      background: "#1a1040",
+                      border: "1px solid #2a1f5e",
+                      borderRadius: 4,
+                      color: "#b39ddb",
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      cursor: "pointer",
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontWeight: 700,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    ?
+                  </button>
+                  <span
+                    onClick={() => setVolLocked((v) => !v)}
+                    style={{
+                      fontSize: 10,
+                      color: volLocked ? "#4fc3f7" : "#6b7394",
+                      cursor: "pointer",
+                      userSelect: "none",
+                      opacity: volLocked ? 1 : 0.6,
+                    }}
+                  >
+                    {volLocked ? "unlock" : "lock"}
+                  </span>
+                </span>
               </span>
               <span
                 style={{ fontSize: 13, color: "#4fc3f7", fontWeight: 600 }}
