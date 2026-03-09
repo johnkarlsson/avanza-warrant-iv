@@ -28,6 +28,27 @@ const bsCall = (S, K, T, r, sigma) => {
   return S * cdf(d1) - K * Math.exp(-r * T) * cdf(d2);
 };
 
+// Truncated BS: integrate only over z ∈ [-1, 1] (±1σ), normalized to conditional expectation
+const bsCall1Sigma = (S, K, T, r, sigma) => {
+  if (T <= 0) return Math.max(S - K, 0);
+  const v = sigma * Math.sqrt(T);
+  const d2 = (Math.log(S / K) + (r - sigma * sigma / 2) * T) / v;
+  const norm = cdf(1) - cdf(-1);
+  const a = Math.max(-1, -d2);
+  if (a >= 1) return 0;
+  return (S * (cdf(1 - v) - cdf(a - v)) - K * Math.exp(-r * T) * (cdf(1) - cdf(a))) / norm;
+};
+
+const bsPut1Sigma = (S, K, T, r, sigma) => {
+  if (T <= 0) return Math.max(K - S, 0);
+  const v = sigma * Math.sqrt(T);
+  const d2 = (Math.log(S / K) + (r - sigma * sigma / 2) * T) / v;
+  const norm = cdf(1) - cdf(-1);
+  const b = Math.min(1, -d2);
+  if (b <= -1) return 0;
+  return (K * Math.exp(-r * T) * (cdf(b) - cdf(-1)) - S * (cdf(b - v) - cdf(-1 - v))) / norm;
+};
+
 const bsVega = (S, K, T, r, sigma) => {
   const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
   return S * Math.sqrt(T) * npdf(d1);
@@ -198,13 +219,35 @@ export default function WarrantCalculator() {
   const [activeScenario, setActiveScenario] = useState(null);
   const [needsSelection, setNeedsSelection] = useState(true);
   const [cacheLoaded, setCacheLoaded] = useState(false);
+  const [favorites, setFavorites] = useState(new Set());
+  const [daysFromNowLocked, setDaysFromNowLocked] = useState(false);
+
+  // ── Toggle favorite ──
+  const toggleFavorite = useCallback((orderbookId, e) => {
+    e.stopPropagation();
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(orderbookId)) next.delete(orderbookId);
+      else next.add(orderbookId);
+      try {
+        const existing = JSON.parse(localStorage.getItem("avanza_warrant_cache") || "{}");
+        localStorage.setItem("avanza_warrant_cache", JSON.stringify({
+          ...existing,
+          favorites: [...next],
+        }));
+      } catch (err) {
+        console.error("Failed to save favorites:", err);
+      }
+      return next;
+    });
+  }, []);
 
   // ── Load cache on mount ──
   useEffect(() => {
     try {
       const raw = localStorage.getItem("avanza_warrant_cache");
       if (raw) {
-        const { results, details, ivs, activity, total, calc, search } = JSON.parse(raw);
+        const { results, details, ivs, activity, total, calc, search, favorites: savedFavs } = JSON.parse(raw);
         if (results) setSearchResults(results);
         if (details) setWarrantDetails(details);
         if (ivs) setComputedIVs(ivs);
@@ -233,6 +276,7 @@ export default function WarrantCalculator() {
           if (calc.underlyingName != null) setUnderlyingName(calc.underlyingName);
           if (calc.selectedWarrantId != null) setNeedsSelection(false);
         }
+        if (savedFavs) setFavorites(new Set(savedFavs));
       }
     } catch (e) {
       console.error("Failed to load cache:", e);
@@ -486,8 +530,16 @@ export default function WarrantCalculator() {
         return (av - bv) * dir;
       });
     }
+    // Favorites always on top
+    if (favorites.size > 0) {
+      enriched.sort((a, b) => {
+        const af = favorites.has(a.orderbookId) ? 1 : 0;
+        const bf = favorites.has(b.orderbookId) ? 1 : 0;
+        return bf - af;
+      });
+    }
     return enriched;
-  }, [searchResults, warrantDetails, computedIVs, activityScores, sortField, sortOrder]);
+  }, [searchResults, warrantDetails, computedIVs, activityScores, sortField, sortOrder, favorites]);
 
   // ── Median IV display ──
   const medianIV = useMemo(() => {
@@ -565,7 +617,12 @@ export default function WarrantCalculator() {
         const today = new Date();
         const days = Math.max(Math.round((expiry - today) / (24 * 60 * 60 * 1000)), 1);
         setTotalDaysToExpiry(days);
-        setDaysToExpiry(DEFAULT_DAYS_FROM_NOW_ONE_THIRD ? Math.round(days * 2 / 3) : days);
+        if (daysFromNowLocked) {
+          const currentDaysFromNow = totalDaysToExpiry - daysToExpiry;
+          setDaysToExpiry(Math.max(1, days - currentDaysFromNow));
+        } else {
+          setDaysToExpiry(DEFAULT_DAYS_FROM_NOW_ONE_THIRD ? Math.round(days * 2 / 3) : days);
+        }
       }
 
       // Set IV from computed value for this warrant
@@ -591,7 +648,7 @@ export default function WarrantCalculator() {
         if (!isPanelVisible(1)) scrollToPanel(1);
       }, 0);
     },
-    [warrantDetails, computedIVs, scrollToPanel, isPanelVisible]
+    [warrantDetails, computedIVs, scrollToPanel, isPanelVisible, daysFromNowLocked, totalDaysToExpiry, daysToExpiry]
   );
 
   // ── IV Solver (auto-run) ──
@@ -629,9 +686,12 @@ export default function WarrantCalculator() {
     const sigma = vol / 100;
     const priceFn = calcDirection === "short" ? bsPut : bsCall;
 
+    const priceFn1Sigma = calcDirection === "short" ? bsPut1Sigma : bsCall1Sigma;
+
     return scenarios.map((s) => {
       const newSpot = spotPrice * (1 + s.change / 100);
       const optionValue = priceFn(newSpot, strike, T, riskFreeRate, sigma);
+      const optionValue1Sigma = priceFn1Sigma(newSpot, strike, T, riskFreeRate, sigma);
       const warrantTheoretical = optionValue / parity;
       const pnlPerWarrant = warrantTheoretical - warrantPrice;
       const pnlPct =
@@ -666,6 +726,10 @@ export default function WarrantCalculator() {
         pnl: pnlPerWarrant.toFixed(2),
         pnlPct: pnlPct.toFixed(0),
         profitable: pnlPerWarrant > 0,
+        pnlPct1Sigma: warrantPrice > 0
+          ? (((optionValue1Sigma / parity - warrantPrice) / warrantPrice) * 100).toFixed(0)
+          : "0",
+        profitable1Sigma: optionValue1Sigma / parity > warrantPrice,
       };
     });
   }, [
@@ -887,23 +951,23 @@ export default function WarrantCalculator() {
         @media (min-width: 2024px) { .nav-arrow { display: none; } }
       `}</style>
 
-      {visiblePanels < 3 && (
-        <>
-          <button
-            className="nav-arrow nav-arrow-left"
-            onClick={() => canGoLeft && scrollToPanel(activePanel - 1)}
-            style={{ color: canGoLeft ? "#fff" : "#3a4060" }}
-          >
-            &#8249;
-          </button>
-          <button
-            className="nav-arrow nav-arrow-right"
-            onClick={() => canGoRight && scrollToPanel(activePanel + 1)}
-            style={{ color: canGoRight ? "#fff" : "#3a4060" }}
-          >
-            &#8250;
-          </button>
-        </>
+      {visiblePanels < 3 && canGoLeft && (
+        <button
+          className="nav-arrow nav-arrow-left"
+          onClick={() => scrollToPanel(activePanel - 1)}
+          style={{ color: "#fff" }}
+        >
+          &#8249;
+        </button>
+      )}
+      {visiblePanels < 3 && canGoRight && (
+        <button
+          className="nav-arrow nav-arrow-right"
+          onClick={() => scrollToPanel(activePanel + 1)}
+          style={{ color: "#fff" }}
+        >
+          &#8250;
+        </button>
       )}
 
       <div ref={scrollContainerRef} className="panel-container" onScroll={handleContainerScroll} style={{ padding: "32px 0" }}>
@@ -1271,6 +1335,7 @@ export default function WarrantCalculator() {
                 <thead>
                   <tr style={{ borderBottom: "1px solid #1a2035" }}>
                     {[
+                      "",
                       "Name",
                       "Dir",
                       "Expiry",
@@ -1304,8 +1369,8 @@ export default function WarrantCalculator() {
                       <th
                         key={i}
                         style={{
-                          padding: "12px 14px",
-                          textAlign: i === 0 ? "left" : "right",
+                          padding: i === 0 ? "12px 6px 12px 14px" : "12px 14px",
+                          textAlign: i <= 1 ? "left" : "right",
                           fontSize: 10,
                           color: "#6b7394",
                           textTransform: "uppercase",
@@ -1316,6 +1381,7 @@ export default function WarrantCalculator() {
                           top: 0,
                           background: "#0d1117",
                           zIndex: 1,
+                          width: i === 0 ? 20 : undefined,
                         }}
                       >
                         {h}
@@ -1340,6 +1406,29 @@ export default function WarrantCalculator() {
                             : "transparent",
                       }}
                     >
+                      <td
+                        style={{
+                          padding: "12px 6px 12px 14px",
+                          width: 20,
+                          textAlign: "center",
+                        }}
+                      >
+                        <button
+                          onClick={(e) => toggleFavorite(r.orderbookId, e)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: 0,
+                            fontSize: 16,
+                            lineHeight: 1,
+                            color: favorites.has(r.orderbookId) ? "#fdd835" : "#3a4060",
+                          }}
+                          title={favorites.has(r.orderbookId) ? "Remove from favorites" : "Add to favorites"}
+                        >
+                          {favorites.has(r.orderbookId) ? "\u2605" : "\u2606"}
+                        </button>
+                      </td>
                       <td
                         style={{
                           padding: "12px 14px",
@@ -1792,17 +1881,31 @@ export default function WarrantCalculator() {
                 >
                   Days from now
                 </span>
-                <span
-                  onClick={() => { setDaysToExpiry(Math.max(1, daysToExpiry - 30)); setResimTrigger((n) => n + 1); }}
-                  style={{
-                    fontSize: 11,
-                    color: "#4fc3f7",
-                    cursor: "pointer",
-                    opacity: 0.6,
-                    userSelect: "none",
-                  }}
-                >
-                  +30
+                <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span
+                    onClick={() => { setDaysToExpiry(Math.max(1, daysToExpiry - 30)); setResimTrigger((n) => n + 1); }}
+                    style={{
+                      fontSize: 11,
+                      color: "#4fc3f7",
+                      cursor: "pointer",
+                      opacity: 0.6,
+                      userSelect: "none",
+                    }}
+                  >
+                    +30
+                  </span>
+                  <span
+                    onClick={() => setDaysFromNowLocked((v) => !v)}
+                    style={{
+                      fontSize: 10,
+                      color: daysFromNowLocked ? "#4fc3f7" : "#6b7394",
+                      cursor: "pointer",
+                      userSelect: "none",
+                      opacity: daysFromNowLocked ? 1 : 0.6,
+                    }}
+                  >
+                    {daysFromNowLocked ? "unlock" : "lock"}
+                  </span>
                 </span>
               </span>
               <span
@@ -1909,6 +2012,7 @@ export default function WarrantCalculator() {
                     "Intrinsic",
                     "Warrant value",
                     "Return",
+                    <span>1<span style={{ textTransform: "none" }}>&sigma;</span>-RETURN</span>,
                   ].map((h, i) => (
                     <th
                       key={i}
@@ -2034,6 +2138,17 @@ export default function WarrantCalculator() {
                     >
                       {r.profitable ? "+" : ""}
                       {r.pnlPct}%
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "right",
+                        fontWeight: 700,
+                        color: r.profitable1Sigma ? "#4caf50" : "#e53935",
+                      }}
+                    >
+                      {r.profitable1Sigma ? "+" : ""}
+                      {r.pnlPct1Sigma}%
                     </td>
                   </tr>
                 ))}
