@@ -619,7 +619,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
             {/* Chart */}
             <div style={{ marginBottom: 20, position: "relative" }}>
               <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={mergedData}>
+                <AreaChart data={mergedData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
                   <defs>
                     <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop
@@ -648,8 +648,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                     }}
                     axisLine={{ stroke: "#1a2035" }}
                     tickLine={false}
-                    interval="preserveStartEnd"
-                    minTickGap={50}
+                    interval={Math.max(0, Math.ceil(mergedData.length / 6) - 1)}
                   />
                   <YAxis
                     domain={([dataMin, dataMax]) => {
@@ -669,7 +668,7 @@ export default function HistoricalChart({ underlyingName, underlyingId, medianIV
                     }}
                     axisLine={false}
                     tickLine={false}
-                    width={60}
+                    width={35}
                     tickFormatter={(v) => v.toFixed(0)}
                   />
                   <Tooltip
